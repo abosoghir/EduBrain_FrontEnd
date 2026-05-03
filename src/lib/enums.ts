@@ -75,16 +75,27 @@ export enum ExamType {
 }
 
 export enum PaymentStatus {
-  Paid = 0,
-  Unpaid = 1,
-  PartiallyPaid = 2,
+  Pending = 0,
+  Paid = 1,
+  Overdue = 2,
+  PartiallyPaid = 3,
 }
 
 export enum PaymentMethod {
-  Cash = 0,
-  Card = 1,
-  Online = 2,
-  BankTransfer = 3,
+  BankTransfer = 0,
+  CreditCard = 1,
+  Cash = 2,
+  OnlinePayment = 3,
+}
+
+export enum DayOfWeek {
+  Sunday = 0,
+  Monday = 1,
+  Tuesday = 2,
+  Wednesday = 3,
+  Thursday = 4,
+  Friday = 5,
+  Saturday = 6,
 }
 
 export enum Gender {
@@ -217,16 +228,27 @@ export const EXAM_TYPE_LABELS: Record<ExamType, string> = {
 };
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  [PaymentStatus.Pending]: 'Pending',
   [PaymentStatus.Paid]: 'Paid',
-  [PaymentStatus.Unpaid]: 'Unpaid',
+  [PaymentStatus.Overdue]: 'Overdue',
   [PaymentStatus.PartiallyPaid]: 'Partially Paid',
 };
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  [PaymentMethod.Cash]: 'Cash',
-  [PaymentMethod.Card]: 'Card',
-  [PaymentMethod.Online]: 'Online',
   [PaymentMethod.BankTransfer]: 'Bank Transfer',
+  [PaymentMethod.CreditCard]: 'Credit Card',
+  [PaymentMethod.Cash]: 'Cash',
+  [PaymentMethod.OnlinePayment]: 'Online Payment',
+};
+
+export const DAY_OF_WEEK_LABELS: Record<DayOfWeek, string> = {
+  [DayOfWeek.Sunday]: 'Sunday',
+  [DayOfWeek.Monday]: 'Monday',
+  [DayOfWeek.Tuesday]: 'Tuesday',
+  [DayOfWeek.Wednesday]: 'Wednesday',
+  [DayOfWeek.Thursday]: 'Thursday',
+  [DayOfWeek.Friday]: 'Friday',
+  [DayOfWeek.Saturday]: 'Saturday',
 };
 
 export const GENDER_LABELS: Record<Gender, string> = {
