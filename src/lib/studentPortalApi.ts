@@ -1,0 +1,193 @@
+// ============================================================
+// Student Portal API Service Layer
+// Base URL: /api/student
+// ============================================================
+
+import { api } from './api';
+import type {
+  StudentDashboardData,
+  RegistrationStatus,
+  AvailableCoursesResponse,
+  RegisterCourseRequest,
+  RegisterCourseResponse,
+  DropCourseResponse,
+  StudentCoursesResponse,
+  StudentCourseDetail,
+  StudentCourseMaterialsResponse,
+  CourseAttendanceDetail,
+  StudentScheduleData,
+  StudentGradesData,
+  GpaHistoryData,
+  StudentAttendanceData,
+  StudentExamData,
+  StudentFeesData,
+  StudentNotificationsData,
+  StudentProfile,
+  UpdateStudentProfileRequest,
+} from '@/types/student';
+
+// ---- Helpers ----
+
+interface ApiWrapper<T> {
+  success: boolean;
+  data?: T;
+  message?: string;
+}
+
+function unwrap<T>(response: { data: ApiWrapper<T> }): T {
+  const body = response.data;
+  if (!body.success || body.data === undefined) {
+    throw new Error(body.message || 'Request failed');
+  }
+  return body.data;
+}
+
+// ---- Dashboard ----
+
+export async function fetchStudentDashboard(): Promise<StudentDashboardData> {
+  const res = await api.get<ApiWrapper<StudentDashboardData>>('/api/student/dashboard');
+  return unwrap(res);
+}
+
+// ---- Registration ----
+
+export async function fetchRegistrationStatus(): Promise<RegistrationStatus> {
+  const res = await api.get<ApiWrapper<RegistrationStatus>>('/api/student/registration/status');
+  return unwrap(res);
+}
+
+export async function fetchAvailableCourses(params?: {
+  departmentId?: number;
+  yearLevel?: number;
+  electiveOnly?: boolean;
+}): Promise<AvailableCoursesResponse> {
+  const parts: string[] = [];
+  if (params?.departmentId !== undefined) parts.push(`departmentId=${params.departmentId}`);
+  if (params?.yearLevel !== undefined) parts.push(`yearLevel=${params.yearLevel}`);
+  if (params?.electiveOnly !== undefined) parts.push(`electiveOnly=${params.electiveOnly}`);
+  const qs = parts.length > 0 ? `?${parts.join('&')}` : '';
+  const res = await api.get<ApiWrapper<AvailableCoursesResponse>>(`/api/student/registration/available-courses${qs}`);
+  return unwrap(res);
+}
+
+export async function registerForCourse(courseInstanceId: number): Promise<RegisterCourseResponse> {
+  const payload: RegisterCourseRequest = { courseInstanceId };
+  const res = await api.post<ApiWrapper<RegisterCourseResponse>>(
+    '/api/student/registration/register',
+    payload
+  );
+  return unwrap(res);
+}
+
+export async function dropCourse(enrollmentId: number): Promise<DropCourseResponse> {
+  const res = await api.delete<ApiWrapper<DropCourseResponse>>(
+    `/api/student/registration/drop/${enrollmentId}`
+  );
+  return unwrap(res);
+}
+
+// ---- Courses ----
+
+export async function fetchStudentCourses(semesterId?: number): Promise<StudentCoursesResponse> {
+  const qs = semesterId !== undefined ? `?semesterId=${semesterId}` : '';
+  const res = await api.get<ApiWrapper<StudentCoursesResponse>>(`/api/student/courses${qs}`);
+  return unwrap(res);
+}
+
+export async function fetchStudentCourseDetail(courseInstanceId: number): Promise<StudentCourseDetail> {
+  const res = await api.get<ApiWrapper<StudentCourseDetail>>(`/api/student/courses/${courseInstanceId}`);
+  return unwrap(res);
+}
+
+export async function fetchStudentCourseMaterials(courseInstanceId: number): Promise<StudentCourseMaterialsResponse> {
+  const res = await api.get<ApiWrapper<StudentCourseMaterialsResponse>>(
+    `/api/student/courses/${courseInstanceId}/materials`
+  );
+  return unwrap(res);
+}
+
+export async function fetchCourseAttendanceDetail(courseInstanceId: number): Promise<CourseAttendanceDetail> {
+  const res = await api.get<ApiWrapper<CourseAttendanceDetail>>(
+    `/api/student/courses/${courseInstanceId}/attendance`
+  );
+  return unwrap(res);
+}
+
+// ---- Schedule ----
+
+export async function fetchStudentSchedule(): Promise<StudentScheduleData> {
+  const res = await api.get<ApiWrapper<StudentScheduleData>>('/api/student/schedule/weekly');
+  return unwrap(res);
+}
+
+// ---- Grades ----
+
+export async function fetchStudentGrades(semesterId?: number): Promise<StudentGradesData> {
+  const qs = semesterId !== undefined ? `?semesterId=${semesterId}` : '';
+  const res = await api.get<ApiWrapper<StudentGradesData>>(`/api/student/grades${qs}`);
+  return unwrap(res);
+}
+
+export async function fetchGpaHistory(): Promise<GpaHistoryData> {
+  const res = await api.get<ApiWrapper<GpaHistoryData>>('/api/student/grades/gpa-history');
+  return unwrap(res);
+}
+
+// ---- Attendance ----
+
+export async function fetchStudentAttendance(): Promise<StudentAttendanceData> {
+  const res = await api.get<ApiWrapper<StudentAttendanceData>>('/api/student/attendance');
+  return unwrap(res);
+}
+
+// ---- Exam Schedule ----
+
+export async function fetchExamSchedule(): Promise<StudentExamData> {
+  const res = await api.get<ApiWrapper<StudentExamData>>('/api/student/exam-schedule');
+  return unwrap(res);
+}
+
+// ---- Fees ----
+
+export async function fetchStudentFees(semesterId?: number): Promise<StudentFeesData> {
+  const qs = semesterId !== undefined ? `?semesterId=${semesterId}` : '';
+  const res = await api.get<ApiWrapper<StudentFeesData>>(`/api/student/fees${qs}`);
+  return unwrap(res);
+}
+
+// ---- Notifications ----
+
+export async function fetchStudentNotifications(params?: {
+  type?: number;
+  isRead?: boolean;
+  page?: number;
+  pageSize?: number;
+}): Promise<StudentNotificationsData> {
+  const parts: string[] = [];
+  if (params?.type !== undefined) parts.push(`type=${params.type}`);
+  if (params?.isRead !== undefined) parts.push(`isRead=${params.isRead}`);
+  if (params?.page !== undefined) parts.push(`page=${params.page}`);
+  if (params?.pageSize !== undefined) parts.push(`pageSize=${params.pageSize}`);
+  const qs = parts.length > 0 ? `?${parts.join('&')}` : '';
+  const res = await api.get<ApiWrapper<StudentNotificationsData>>(`/api/student/notifications${qs}`);
+  return unwrap(res);
+}
+
+export async function markNotificationRead(notificationId: number): Promise<void> {
+  await api.put(`/api/student/notifications/${notificationId}/mark-read`, {});
+}
+
+export async function markAllNotificationsRead(): Promise<void> {
+  await api.put('/api/student/notifications/mark-all-read', {});
+}
+
+// ---- Profile ----
+
+export async function fetchStudentProfile(): Promise<StudentProfile> {
+  const res = await api.get<ApiWrapper<StudentProfile>>('/api/student/profile');
+  return unwrap(res);
+}
+
+export async function updateStudentProfile(payload: UpdateStudentProfileRequest): Promise<void> {
+  await api.put('/api/student/profile', payload);
+}

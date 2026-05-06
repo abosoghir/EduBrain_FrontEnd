@@ -1,29 +1,22 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { api } from '../../../lib/api';
-import type { ApiResponse } from '../../../lib/api';
-import type { StudentNotification } from '../../../types/student';
-
-import { NOTIFICATION_TYPE_LABELS } from '../../../lib/enums';
+import { fetchStudentNotifications, markNotificationRead, markAllNotificationsRead } from '@/lib/studentPortalApi';
+import type { StudentNotificationsData, StudentNotification } from '@/types/student';
+import { NOTIFICATION_TYPE_LABELS } from '@/lib/enums';
 
 export default function StudentNotifications() {
-  const [notifications, setNotifications] = useState<StudentNotification[]>([]);
+  const [data, setData] = useState<StudentNotificationsData | null>(null);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<'all' | 'unread' | 'read'>('all');
+  const [markingAll, setMarkingAll] = useState(false);
 
   useEffect(() => {
-    api.get<ApiResponse<StudentNotification[]>>('/api/student/notifications')
-      .then((res) => {
-        if (res.data.isSuccess && res.data.hasData && res.data.data) {
-          setNotifications(res.data.data);
-        } else {
-          setNotifications([]);
-        }
-      })
-      .catch(() => {
-        setNotifications([]);
-      })
+    fetchStudentNotifications({ page: 1, pageSize: 50 })
+      .then(setData)
+      .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
+
+  const notifications: StudentNotification[] = data?.notifications?.items ?? [];
 
   const filtered = useMemo(() => {
     if (filter === 'all') return notifications;
@@ -31,7 +24,52 @@ export default function StudentNotifications() {
     return notifications.filter((n) => n.isRead);
   }, [notifications, filter]);
 
-  const unreadCount = useMemo(() => notifications.filter((n) => !n.isRead).length, [notifications]);
+  const handleMarkRead = async (notificationId: number) => {
+    try {
+      await markNotificationRead(notificationId);
+    } catch {
+      // still update locally
+    }
+    setData((prev) => {
+      if (!prev) return prev;
+      return {
+        ...prev,
+        unreadCount: Math.max(0, prev.unreadCount - 1),
+        notifications: {
+          ...prev.notifications,
+          items: prev.notifications.items.map((n) =>
+            n.notificationId === notificationId ? { ...n, isRead: true, readAt: new Date().toISOString() } : n
+          ),
+        },
+      };
+    });
+  };
+
+  const handleMarkAllRead = async () => {
+    setMarkingAll(true);
+    try {
+      await markAllNotificationsRead();
+      setData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          unreadCount: 0,
+          notifications: {
+            ...prev.notifications,
+            items: prev.notifications.items.map((n) => ({
+              ...n,
+              isRead: true,
+              readAt: n.readAt ?? new Date().toISOString(),
+            })),
+          },
+        };
+      });
+    } catch {
+      // ignore
+    } finally {
+      setMarkingAll(false);
+    }
+  };
 
   const typeIcon = (type: number) => {
     const map: Record<number, string> = {
@@ -46,7 +84,7 @@ export default function StudentNotifications() {
       8: 'ri-questionnaire-line',
       9: 'ri-calendar-event-line',
     };
-    return map[type] || 'ri-notification-line';
+    return map[type] ?? 'ri-notification-line';
   };
 
   const typeColor = (type: number) => {
@@ -62,21 +100,7 @@ export default function StudentNotifications() {
       8: 'bg-pink-50 text-pink-500',
       9: 'bg-cyan-50 text-cyan-500',
     };
-    return map[type] || 'bg-gray-50 text-gray-500';
-  };
-
-  const handleMarkRead = async (notificationId: number) => {
-    try {
-      await api.post(`/api/student/notifications/${notificationId}/read`, {});
-      setNotifications((prev) =>
-        prev.map((n) => (n.notificationId === notificationId ? { ...n, isRead: true } : n))
-      );
-    } catch {
-      // Still update locally on error
-      setNotifications((prev) =>
-        prev.map((n) => (n.notificationId === notificationId ? { ...n, isRead: true } : n))
-      );
-    }
+    return map[type] ?? 'bg-gray-50 text-gray-500';
   };
 
   return (
@@ -84,25 +108,43 @@ export default function StudentNotifications() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mb-6">
         <div className="flex items-center gap-3">
           <h1 className="text-xl font-bold text-slate-800">Notifications</h1>
-          {unreadCount > 0 && (
+          {(data?.unreadCount ?? 0) > 0 && (
             <span className="px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-xs font-medium">
-              {unreadCount} unread
+              {data!.unreadCount} unread
             </span>
           )}
         </div>
-        <div className="flex gap-2">
-          {(['all', 'unread', 'read'] as const).map((f) => (
+        <div className="flex items-center gap-2">
+          {/* Mark All Read */}
+          {(data?.unreadCount ?? 0) > 0 && (
             <button
-              key={f}
               type="button"
-              onClick={() => setFilter(f)}
-              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-                filter === f ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-100 text-slate-600 hover:bg-gray-50'
-              }`}
+              onClick={handleMarkAllRead}
+              disabled={markingAll}
+              className="px-3 py-1.5 rounded-lg text-xs font-medium bg-emerald-600 text-white hover:bg-emerald-700 transition-colors disabled:opacity-60"
             >
-              {f === 'all' ? 'All' : f === 'unread' ? 'Unread' : 'Read'}
+              {markingAll ? (
+                <span className="flex items-center gap-1"><i className="ri-loader-4-line animate-spin" />Marking...</span>
+              ) : (
+                'Mark All as Read'
+              )}
             </button>
-          ))}
+          )}
+          {/* Filters */}
+          <div className="flex gap-1">
+            {(['all', 'unread', 'read'] as const).map((f) => (
+              <button
+                key={f}
+                type="button"
+                onClick={() => setFilter(f)}
+                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
+                  filter === f ? 'bg-slate-800 text-white' : 'bg-white border border-gray-100 text-slate-600 hover:bg-gray-50'
+                }`}
+              >
+                {f === 'all' ? 'All' : f === 'unread' ? 'Unread' : 'Read'}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -127,7 +169,7 @@ export default function StudentNotifications() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="flex items-start justify-between gap-2">
-                  <div>
+                  <div className="flex-1 min-w-0">
                     <p className={`text-sm font-medium ${n.isRead ? 'text-slate-600' : 'text-slate-800'}`}>
                       {n.title}
                     </p>
@@ -143,15 +185,25 @@ export default function StudentNotifications() {
                     </button>
                   )}
                 </div>
-                <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-400">
+                <div className="flex items-center gap-3 mt-2 text-[10px] text-slate-400 flex-wrap">
                   <span className="flex items-center gap-1">
                     <i className="ri-user-line" />
                     {n.senderName}
                   </span>
-                  <span>{new Date(n.sentDate).toLocaleDateString(undefined, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+                  <span>
+                    {new Date(n.sentDate).toLocaleDateString(undefined, {
+                      month: 'short',
+                      day: 'numeric',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })}
+                  </span>
                   <span className={`px-1.5 py-0.5 rounded ${typeColor(n.type)}`}>
                     {NOTIFICATION_TYPE_LABELS[n.type as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9]}
                   </span>
+                  {!n.isRead && (
+                    <span className="w-2 h-2 rounded-full bg-emerald-500 inline-block" />
+                  )}
                 </div>
               </div>
             </div>
@@ -168,6 +220,13 @@ export default function StudentNotifications() {
             {filter === 'unread' ? 'No unread notifications.' : filter === 'read' ? 'No read notifications.' : 'No notifications yet.'}
           </p>
         </div>
+      )}
+
+      {/* Pagination hint */}
+      {data && data.notifications.totalPages > 1 && (
+        <p className="text-center text-xs text-slate-400 mt-4">
+          Showing page {data.notifications.page} of {data.notifications.totalPages} ({data.notifications.totalCount} total)
+        </p>
       )}
     </div>
   );

@@ -1,55 +1,65 @@
 import React, { useEffect, useState, useMemo } from 'react';
-import { api } from '../../../lib/api';
-import type { ApiResponse } from '../../../lib/api';
-import type { StudentScheduleSlot } from '../../../types/student';
+import { useNavigate } from 'react-router-dom';
+import { fetchStudentSchedule } from '@/lib/studentPortalApi';
+import type { StudentScheduleData, StudentScheduleSlot } from '@/types/student';
+import { SCHEDULE_TYPE_LABELS, DAY_OF_WEEK_LABELS } from '@/lib/enums';
 
-import { SCHEDULE_TYPE_LABELS } from '../../../lib/enums';
-
-const DAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const DAY_NUMBERS = [0, 1, 2, 3, 4, 5, 6]; // Sunday=0 ... Saturday=6
 
 export default function StudentSchedule() {
-  const [schedule, setSchedule] = useState<StudentScheduleSlot[]>([]);
+  const navigate = useNavigate();
+  const [data, setData] = useState<StudentScheduleData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedDay, setSelectedDay] = useState<string>('Sunday');
+  const [selectedDay, setSelectedDay] = useState<number>(0); // Sunday default
 
   useEffect(() => {
-    api.get<ApiResponse<StudentScheduleSlot[]>>('/api/student/schedule')
-      .then((res) => {
-        const payload = res.data?.data;
-        if (res.data?.isSuccess && Array.isArray(payload)) {
-          setSchedule(payload);
-        } else {
-          setSchedule([]);
-        }
+    fetchStudentSchedule()
+      .then((d) => {
+        setData(d);
+        // Default to today's day number
+        const today = new Date().getDay(); // 0=Sun, 6=Sat
+        setSelectedDay(today);
       })
-      .catch(() => {
-        setSchedule([]);
-      })
+      .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
 
-  const scheduleByDay = useMemo(() => {
-    const map: Record<string, StudentScheduleSlot[]> = {};
-    DAYS.forEach((d) => (map[d] = []));
-    const list = Array.isArray(schedule) ? schedule : [];
-    list.forEach((slot) => {
-      if (!map[slot.day]) map[slot.day] = [];
-      map[slot.day].push(slot);
-    });
-    // Sort by start time
-    DAYS.forEach((d) => {
-      map[d].sort((a, b) => a.startTime.localeCompare(b.startTime));
-    });
+  // Build map: dayNumber -> slots
+  const slotsByDay = useMemo<Record<number, StudentScheduleSlot[]>>(() => {
+    const map: Record<number, StudentScheduleSlot[]> = {};
+    DAY_NUMBERS.forEach((d) => (map[d] = []));
+    if (data?.weeklySchedule) {
+      data.weeklySchedule.forEach((day) => {
+        map[day.day] = [...(day.slots || [])].sort((a, b) =>
+          a.startTime.localeCompare(b.startTime)
+        );
+      });
+    }
     return map;
-  }, [schedule]);
+  }, [data]);
 
-  const hasClasses = useMemo(() => {
-    return scheduleByDay[selectedDay]?.length > 0;
-  }, [scheduleByDay, selectedDay]);
+  const slotsForSelectedDay = slotsByDay[selectedDay] ?? [];
+
+  // Total sessions stat
+  const totalSessions = useMemo(() =>
+    DAY_NUMBERS.reduce((sum, d) => sum + slotsByDay[d].length, 0),
+    [slotsByDay]
+  );
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-slate-800 mb-6">My Schedule</h1>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-xl font-bold text-slate-800">My Schedule</h1>
+          {data?.semesterName && (
+            <p className="text-xs text-slate-500 mt-0.5">{data.semesterName}</p>
+          )}
+        </div>
+        <div className="flex items-center gap-2 text-xs text-slate-500">
+          <i className="ri-calendar-line" />
+          {totalSessions} sessions/week
+        </div>
+      </div>
 
       {loading && (
         <div className="flex items-center gap-2 text-slate-400 text-sm mb-6">
@@ -58,22 +68,23 @@ export default function StudentSchedule() {
         </div>
       )}
 
-      {/* Day selector */}
+      {/* Day Selector */}
       <div className="flex gap-1 mb-6 overflow-x-auto pb-1">
-        {DAYS.map((day) => {
-          const count = scheduleByDay[day]?.length || 0;
+        {DAY_NUMBERS.map((dayNum) => {
+          const count = slotsByDay[dayNum]?.length || 0;
+          const label = DAY_OF_WEEK_LABELS[dayNum as 0 | 1 | 2 | 3 | 4 | 5 | 6];
           return (
             <button
-              key={day}
+              key={dayNum}
               type="button"
-              onClick={() => setSelectedDay(day)}
+              onClick={() => setSelectedDay(dayNum)}
               className={`flex flex-col items-center px-4 py-2.5 rounded-lg text-xs font-medium transition-all shrink-0 ${
-                selectedDay === day
+                selectedDay === dayNum
                   ? 'bg-emerald-600 text-white'
                   : 'bg-white border border-gray-100 text-slate-600 hover:bg-gray-50'
               }`}
             >
-              <span className="text-[10px] opacity-70">{day.slice(0, 3)}</span>
+              <span className="text-[10px] opacity-70">{label.slice(0, 3)}</span>
               <span className="text-sm font-bold">{count}</span>
             </button>
           );
@@ -83,30 +94,39 @@ export default function StudentSchedule() {
       {/* Schedule for selected day */}
       <div className="bg-white rounded-xl border border-gray-100 p-5">
         <h2 className="text-sm font-semibold text-slate-700 mb-4">
-          {selectedDay}'s Classes
-          {hasClasses && (
+          {DAY_OF_WEEK_LABELS[selectedDay as 0 | 1 | 2 | 3 | 4 | 5 | 6]}'s Classes
+          {slotsForSelectedDay.length > 0 && (
             <span className="text-[10px] font-normal text-slate-400 ml-2">
-              ({scheduleByDay[selectedDay].length} sessions)
+              ({slotsForSelectedDay.length} sessions)
             </span>
           )}
         </h2>
 
-        {hasClasses ? (
+        {slotsForSelectedDay.length > 0 ? (
           <div className="space-y-3">
-            {scheduleByDay[selectedDay].map((slot) => (
-              <div
+            {slotsForSelectedDay.map((slot) => (
+              <button
                 key={slot.courseScheduleId}
-                className="flex items-center gap-4 p-4 rounded-lg bg-gray-50 hover:bg-emerald-50/30 transition-colors"
+                type="button"
+                onClick={() => navigate(`/student/courses/${slot.courseScheduleId}`)}
+                className="flex items-center gap-4 p-4 rounded-lg bg-gray-50 hover:bg-emerald-50/30 transition-colors w-full text-left"
               >
+                {/* Color bar */}
+                <div
+                  className="w-1 h-12 rounded-full shrink-0"
+                  style={{ backgroundColor: slot.colorCode || '#10b981' }}
+                />
+                {/* Time */}
                 <div className="text-center shrink-0 w-14">
                   <p className="text-xs font-bold text-slate-700">{slot.startTime.slice(0, 5)}</p>
                   <p className="text-[10px] text-slate-400">{slot.endTime.slice(0, 5)}</p>
                 </div>
                 <div className="w-px h-10 bg-gray-200" />
+                {/* Info */}
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-0.5">
                     <p className="text-sm font-semibold text-slate-800 truncate">{slot.courseName}</p>
-                    <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] text-slate-500">
+                    <span className="px-1.5 py-0.5 rounded bg-slate-100 text-[10px] text-slate-500 shrink-0">
                       {slot.courseCode}
                     </span>
                   </div>
@@ -116,12 +136,15 @@ export default function StudentSchedule() {
                       {slot.roomName}
                     </span>
                     <span className="flex items-center gap-1">
-                      <i className="ri-time-line" />
-                      {SCHEDULE_TYPE_LABELS[slot.scheduleType as 0 | 1 | 2]}
+                      <i className="ri-user-line" />
+                      {slot.doctorName}
+                    </span>
+                    <span className="px-1.5 py-0.5 rounded bg-slate-100 text-slate-500">
+                      {SCHEDULE_TYPE_LABELS[slot.type as 0 | 1 | 2]}
                     </span>
                   </div>
                 </div>
-              </div>
+              </button>
             ))}
           </div>
         ) : (
@@ -129,7 +152,18 @@ export default function StudentSchedule() {
             <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
               <i className="ri-calendar-line text-xl text-slate-400" />
             </div>
-            <p className="text-sm text-slate-400">No classes scheduled for {selectedDay}.</p>
+            <p className="text-sm text-slate-400">
+              No classes on {DAY_OF_WEEK_LABELS[selectedDay as 0 | 1 | 2 | 3 | 4 | 5 | 6]}.
+            </p>
+            {!loading && totalSessions === 0 && (
+              <button
+                type="button"
+                onClick={() => navigate('/student/registration')}
+                className="mt-3 text-xs text-emerald-600 hover:underline"
+              >
+                Go to Registration →
+              </button>
+            )}
           </div>
         )}
       </div>

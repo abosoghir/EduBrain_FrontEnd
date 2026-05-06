@@ -89,10 +89,11 @@ export async function createCourseSchedule(
 ): Promise<{ data: CreateCourseScheduleResponse | null; error?: string }> {
   try {
     const res = await api.post<unknown>('/api/schedules', form);
-    const raw = res.data as CreateCourseScheduleResponse & ApiResponse<CreateCourseScheduleResponse>;
+    // Use Record<string, unknown> to prevent TS control-flow narrowing collapsing the type to `never`
+    const raw = res.data as Record<string, unknown>;
     // Direct response shape (201)
-    if (raw && 'scheduleId' in raw) return { data: raw as CreateCourseScheduleResponse };
-    if (raw && 'isSuccess' in raw && raw.isSuccess && raw.data) return { data: raw.data as unknown as CreateCourseScheduleResponse };
+    if (raw && 'scheduleId' in raw) return { data: raw as unknown as CreateCourseScheduleResponse };
+    if (raw && 'isSuccess' in raw && raw['isSuccess'] && raw['data']) return { data: raw['data'] as unknown as CreateCourseScheduleResponse };
     return { data: null, error: getErrorMessage(res) };
   } catch {
     return { data: null, error: 'Failed to create course schedule' };
@@ -105,9 +106,10 @@ export async function updateCourseSchedule(
 ): Promise<{ data: UpdateCourseScheduleResponse | null; error?: string }> {
   try {
     const res = await api.put<unknown>(`/api/schedules/${scheduleId}`, form);
-    const raw = res.data as UpdateCourseScheduleResponse & ApiResponse<UpdateCourseScheduleResponse>;
-    if (raw && 'scheduleId' in raw) return { data: raw as UpdateCourseScheduleResponse };
-    if (raw && 'isSuccess' in raw && raw.isSuccess && raw.data) return { data: raw.data as unknown as UpdateCourseScheduleResponse };
+    // Use Record<string, unknown> to prevent TS control-flow narrowing collapsing the type to `never`
+    const raw = res.data as Record<string, unknown>;
+    if (raw && 'scheduleId' in raw) return { data: raw as unknown as UpdateCourseScheduleResponse };
+    if (raw && 'isSuccess' in raw && raw['isSuccess'] && raw['data']) return { data: raw['data'] as unknown as UpdateCourseScheduleResponse };
     return { data: null, error: getErrorMessage(res) };
   } catch {
     return { data: null, error: 'Failed to update course schedule' };
@@ -170,9 +172,10 @@ export async function createExamSchedule(
 ): Promise<{ data: CreateExamScheduleResponse | null; error?: string }> {
   try {
     const res = await api.post<unknown>('/api/exam-schedules', form);
-    const raw = res.data as CreateExamScheduleResponse & ApiResponse<CreateExamScheduleResponse>;
-    if (raw && 'examScheduleId' in raw) return { data: raw as CreateExamScheduleResponse };
-    if (raw && 'isSuccess' in raw && raw.isSuccess && raw.data) return { data: raw.data as unknown as CreateExamScheduleResponse };
+    // Use Record<string, unknown> to prevent TS control-flow narrowing collapsing the type to `never`
+    const raw = res.data as Record<string, unknown>;
+    if (raw && 'examScheduleId' in raw) return { data: raw as unknown as CreateExamScheduleResponse };
+    if (raw && 'isSuccess' in raw && raw['isSuccess'] && raw['data']) return { data: raw['data'] as unknown as CreateExamScheduleResponse };
     return { data: null, error: getErrorMessage(res) };
   } catch {
     return { data: null, error: 'Failed to create exam schedule' };
@@ -185,9 +188,10 @@ export async function updateExamSchedule(
 ): Promise<{ data: UpdateExamScheduleResponse | null; error?: string }> {
   try {
     const res = await api.put<unknown>(`/api/exam-schedules/${examScheduleId}`, form);
-    const raw = res.data as UpdateExamScheduleResponse & ApiResponse<UpdateExamScheduleResponse>;
-    if (raw && 'examScheduleId' in raw) return { data: raw as UpdateExamScheduleResponse };
-    if (raw && 'isSuccess' in raw && raw.isSuccess && raw.data) return { data: raw.data as unknown as UpdateExamScheduleResponse };
+    // Use Record<string, unknown> to prevent TS control-flow narrowing collapsing the type to `never`
+    const raw = res.data as Record<string, unknown>;
+    if (raw && 'examScheduleId' in raw) return { data: raw as unknown as UpdateExamScheduleResponse };
+    if (raw && 'isSuccess' in raw && raw['isSuccess'] && raw['data']) return { data: raw['data'] as unknown as UpdateExamScheduleResponse };
     return { data: null, error: getErrorMessage(res) };
   } catch {
     return { data: null, error: 'Failed to update exam schedule' };

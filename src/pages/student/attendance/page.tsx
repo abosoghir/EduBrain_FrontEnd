@@ -1,62 +1,37 @@
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { api } from '../../../lib/api';
-import type { ApiResponse } from '../../../lib/api';
-import type { StudentAttendanceSummary, StudentAttendanceRecord } from '../../../types/student';
-
-import { ATTENDANCE_STATUS_LABELS } from '../../../lib/enums';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { fetchStudentAttendance } from '@/lib/studentPortalApi';
+import type { StudentAttendanceData, CourseAttendanceOverview } from '@/types/student';
 
 export default function StudentAttendance() {
-  const [summary, setSummary] = useState<StudentAttendanceSummary[]>([]);
-  const [records, setRecords] = useState<StudentAttendanceRecord[]>([]);
+  const navigate = useNavigate();
+  const [data, setData] = useState<StudentAttendanceData | null>(null);
   const [loading, setLoading] = useState(true);
-  const [selectedCourse, setSelectedCourse] = useState<string>('all');
 
   useEffect(() => {
-    Promise.all([
-      api.get<ApiResponse<StudentAttendanceSummary[]>>('/api/student/attendance/summary'),
-      api.get<ApiResponse<StudentAttendanceRecord[]>>('/api/student/attendance/records'),
-    ])
-      .then(([sumRes, recRes]) => {
-        if (sumRes.data.isSuccess && sumRes.data.hasData && sumRes.data.data) {
-          setSummary(sumRes.data.data);
-        } else {
-          setSummary([]);
-        }
-        if (recRes.data.isSuccess && recRes.data.hasData && recRes.data.data) {
-          setRecords(recRes.data.data);
-        } else {
-          setRecords([]);
-        }
-      })
-      .catch(() => {
-        setSummary([]);
-        setRecords([]);
-      })
+    fetchStudentAttendance()
+      .then(setData)
+      .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, []);
 
-  const filteredRecords = useMemo(() => {
-    if (selectedCourse === 'all') return records;
-    return records.filter((r) => r.courseCode === selectedCourse);
-  }, [records, selectedCourse]);
+  const statusBadge = (badge: number) => {
+    if (badge === 0) return 'bg-emerald-50 text-emerald-600 border-emerald-100';
+    if (badge === 1) return 'bg-amber-50 text-amber-600 border-amber-100';
+    return 'bg-red-50 text-red-600 border-red-100';
+  };
 
-  const statusBadge = useCallback((status: number) => {
-    const map: Record<number, string> = {
-      0: 'bg-emerald-50 text-emerald-600',
-      1: 'bg-red-50 text-red-600',
-      2: 'bg-amber-50 text-amber-600',
-    };
-    return map[status] || 'bg-gray-50 text-gray-600';
-  }, []);
+  const statusLabel = (badge: number) => {
+    if (badge === 0) return 'Normal';
+    if (badge === 1) return 'Warning';
+    return 'Danger';
+  };
 
-  const statusIcon = useCallback((status: number) => {
-    const map: Record<number, string> = {
-      0: 'ri-check-line',
-      1: 'ri-close-line',
-      2: 'ri-time-line',
-    };
-    return map[status] || 'ri-question-line';
-  }, []);
+  const statusIcon = (badge: number) => {
+    if (badge === 0) return 'ri-check-line';
+    if (badge === 1) return 'ri-alert-line';
+    return 'ri-close-circle-line';
+  };
 
   return (
     <div>
@@ -69,114 +44,99 @@ export default function StudentAttendance() {
         </div>
       )}
 
-      {/* Course summary cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 mb-6">
-        {summary.map((s) => (
-          <div
-            key={s.courseCode}
-            onClick={() => setSelectedCourse(s.courseCode)}
-            className={`bg-white rounded-xl border p-5 cursor-pointer transition-all ${
-              selectedCourse === s.courseCode ? 'border-emerald-300 ring-1 ring-emerald-200' : 'border-gray-100 hover:border-gray-200'
-            }`}
-          >
-            <div className="flex items-start justify-between mb-3">
-              <div>
-                <h3 className="text-sm font-semibold text-slate-800">{s.courseName}</h3>
-                <p className="text-[10px] text-slate-400">{s.courseCode}</p>
+      {/* Overall Stats */}
+      {data && (
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+          {[
+            { label: 'Overall Rate', value: `${data.overallAttendanceRate.toFixed(1)}%`, icon: 'ri-bar-chart-line', color: data.overallAttendanceRate >= 85 ? 'text-emerald-600 bg-emerald-50' : data.overallAttendanceRate >= 75 ? 'text-amber-600 bg-amber-50' : 'text-red-600 bg-red-50' },
+            { label: 'Total Present', value: data.totalPresent, icon: 'ri-check-line', color: 'text-emerald-600 bg-emerald-50' },
+            { label: 'Total Absent', value: data.totalAbsent, icon: 'ri-close-line', color: 'text-red-600 bg-red-50' },
+            { label: 'Total Late', value: data.totalLate, icon: 'ri-time-line', color: 'text-amber-600 bg-amber-50' },
+          ].map((s) => (
+            <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-4">
+              <div className={`w-8 h-8 rounded-lg ${s.color} flex items-center justify-center mb-3`}>
+                <i className={`${s.icon} text-sm`} />
               </div>
-              <div className={`w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold ${
-                s.percentage >= 90 ? 'bg-emerald-50 text-emerald-600' : s.percentage >= 75 ? 'bg-amber-50 text-amber-600' : 'bg-red-50 text-red-600'
-              }`}>
-                {s.percentage}%
-              </div>
+              <p className="text-xl font-bold text-slate-800">{s.value}</p>
+              <p className="text-[10px] text-slate-500 mt-0.5">{s.label}</p>
             </div>
-            <div className="flex items-center gap-3 text-[10px]">
-              <span className="flex items-center gap-1 text-emerald-600">
-                <i className="ri-check-line" /> {s.presentCount}
-              </span>
-              <span className="flex items-center gap-1 text-red-500">
-                <i className="ri-close-line" /> {s.absentCount}
-              </span>
-              <span className="flex items-center gap-1 text-amber-600">
-                <i className="ri-time-line" /> {s.lateCount}
-              </span>
-              <span className="text-slate-300">|</span>
-              <span className="text-slate-400">{s.totalCount} total</span>
-            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Course Attendance Table */}
+      {data && data.courseAttendances.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-slate-700">Per-Course Attendance</h2>
+            <span className="text-xs text-slate-400">{data.courseAttendances.length} courses</span>
           </div>
-        ))}
-      </div>
-
-      {/* Filter bar */}
-      <div className="flex items-center gap-2 mb-4">
-        <button
-          type="button"
-          onClick={() => setSelectedCourse('all')}
-          className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-            selectedCourse === 'all' ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-100 text-slate-600 hover:bg-gray-50'
-          }`}
-        >
-          All Records
-        </button>
-        {summary.map((s) => (
-          <button
-            key={s.courseCode}
-            type="button"
-            onClick={() => setSelectedCourse(s.courseCode)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${
-              selectedCourse === s.courseCode ? 'bg-emerald-600 text-white' : 'bg-white border border-gray-100 text-slate-600 hover:bg-gray-50'
-            }`}
-          >
-            {s.courseCode}
-          </button>
-        ))}
-      </div>
-
-      {/* Records list */}
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-700">Attendance Records</h2>
-          <span className="text-xs text-slate-400">{filteredRecords.length} entries</span>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="text-left px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Date</th>
-                <th className="text-left px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Course</th>
-                <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Type</th>
-                <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredRecords.map((r) => (
-                <tr key={r.attendanceId} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-5 py-3 text-xs text-slate-600">
-                    {new Date(r.date).toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' })}
-                  </td>
-                  <td className="px-5 py-3">
-                    <p className="text-sm font-medium text-slate-700">{r.courseName}</p>
-                    <p className="text-[10px] text-slate-400">{r.courseCode}</p>
-                  </td>
-                  <td className="px-5 py-3 text-center">
-                    <span className="text-[10px] text-slate-400">Lecture</span>
-                  </td>
-                  <td className="px-5 py-3 text-center">
-                    <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium ${statusBadge(r.status)}`}>
-                      <i className={statusIcon(r.status)} />
-                      {ATTENDANCE_STATUS_LABELS[r.status as 0 | 1 | 2]}
-                    </span>
-                  </td>
+          <div className="overflow-x-auto">
+            <table className="w-full">
+              <thead>
+                <tr className="bg-gray-50">
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Course</th>
+                  <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Attended</th>
+                  <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Total</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Rate</th>
+                  <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
+                  <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Details</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {data.courseAttendances.map((c: CourseAttendanceOverview) => (
+                  <tr key={c.courseInstanceId} className="hover:bg-gray-50/50 transition-colors">
+                    <td className="px-5 py-3">
+                      <p className="text-sm font-medium text-slate-700">{c.courseName}</p>
+                      <p className="text-[10px] text-slate-400">{c.courseCode}</p>
+                    </td>
+                    <td className="px-5 py-3 text-center text-sm text-slate-600">{c.attendedSessions}</td>
+                    <td className="px-5 py-3 text-center text-sm text-slate-400">{c.totalSessions}</td>
+                    <td className="px-5 py-3 min-w-[120px]">
+                      <div className="flex items-center gap-2">
+                        <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              c.statusBadge === 0 ? 'bg-emerald-500' :
+                              c.statusBadge === 1 ? 'bg-amber-500' : 'bg-red-500'
+                            }`}
+                            style={{ width: `${Math.min(c.attendancePercentage, 100)}%` }}
+                          />
+                        </div>
+                        <span className="text-xs font-medium text-slate-600 w-10 text-right">
+                          {c.attendancePercentage.toFixed(0)}%
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                      <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-medium border ${statusBadge(c.statusBadge)}`}>
+                        <i className={statusIcon(c.statusBadge)} />
+                        {statusLabel(c.statusBadge)}
+                      </span>
+                    </td>
+                    <td className="px-5 py-3 text-center">
+                      <button
+                        type="button"
+                        onClick={() => navigate(`/student/courses/${c.courseInstanceId}?tab=attendance`)}
+                        className="text-xs text-emerald-600 hover:underline"
+                      >
+                        View →
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
-      </div>
+      )}
 
-      {!loading && filteredRecords.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-sm text-slate-400">No attendance records found.</p>
+      {!loading && (!data || data.courseAttendances.length === 0) && (
+        <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
+          <div className="w-16 h-16 rounded-2xl bg-slate-100 flex items-center justify-center mx-auto mb-4">
+            <i className="ri-calendar-check-line text-3xl text-slate-400" />
+          </div>
+          <p className="text-sm text-slate-500">No attendance data available.</p>
         </div>
       )}
     </div>

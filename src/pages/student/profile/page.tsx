@@ -1,9 +1,7 @@
-import React, { useEffect, useState, useCallback } from 'react';
-import { api } from '../../../lib/api';
-import type { ApiResponse } from '../../../lib/api';
-import type { StudentProfile, UpdateStudentProfileRequest } from '../../../types/student';
-
-import { GENDER_LABELS, YEAR_LEVEL_LABELS } from '../../../lib/enums';
+import React, { useEffect, useState } from 'react';
+import { fetchStudentProfile, updateStudentProfile } from '@/lib/studentPortalApi';
+import type { StudentProfile, UpdateStudentProfileRequest } from '@/types/student';
+import { GENDER_LABELS, YEAR_LEVEL_LABELS } from '@/lib/enums';
 
 export default function StudentProfilePage() {
   const [profile, setProfile] = useState<StudentProfile | null>(null);
@@ -11,47 +9,47 @@ export default function StudentProfilePage() {
   const [saving, setSaving] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [form, setForm] = useState<UpdateStudentProfileRequest>();
+  const [form, setForm] = useState<UpdateStudentProfileRequest>({});
 
   useEffect(() => {
-    api.get<ApiResponse<StudentProfile>>('/api/student/profile')
-      .then((res) => {
-        if (res.data.isSuccess && res.data.hasData && res.data.data) {
-          setProfile(res.data.data);
-          setForm({
-            phoneNumber: res.data.data.phoneNumber || '',
-            address: res.data.data.address || '',
-          });
-        } else {
-          setProfile(null);
-          setForm(undefined);
-        }
+    fetchStudentProfile()
+      .then((p) => {
+        setProfile(p);
+        setForm({
+          phoneNumber: p.phoneNumber ?? '',
+          address: p.address ?? '',
+          city: p.city ?? '',
+          fatherPhone: p.fatherPhone ?? '',
+          fatherJob: p.fatherJob ?? '',
+        });
       })
-      .catch(() => {
-        setProfile(null);
-        setForm(undefined);
-      })
+      .catch(() => setProfile(null))
       .finally(() => setLoading(false));
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = async () => {
     setSaving(true);
     setMessage(null);
     try {
-      const res = await api.put<ApiResponse<StudentProfile>>('/api/student/profile', form);
-      if (res.data.isSuccess && res.data.hasData && res.data.data) {
-        setProfile(res.data.data);
-        setMessage({ type: 'success', text: 'Profile updated successfully.' });
-        setEditMode(false);
-      } else {
-        setMessage({ type: 'error', text: res.data.error?.description || 'Failed to update profile.' });
-      }
+      await updateStudentProfile(form);
+      // Refresh profile after save
+      const updated = await fetchStudentProfile();
+      setProfile(updated);
+      setForm({
+        phoneNumber: updated.phoneNumber ?? '',
+        address: updated.address ?? '',
+        city: updated.city ?? '',
+        fatherPhone: updated.fatherPhone ?? '',
+        fatherJob: updated.fatherJob ?? '',
+      });
+      setMessage({ type: 'success', text: 'Profile updated successfully.' });
+      setEditMode(false);
     } catch {
-      setMessage({ type: 'error', text: 'Network error. Please try again.' });
+      setMessage({ type: 'error', text: 'Failed to update profile. Please try again.' });
     } finally {
       setSaving(false);
     }
-  }, [form]);
+  };
 
   if (loading) {
     return (
@@ -70,15 +68,31 @@ export default function StudentProfilePage() {
     );
   }
 
-  const infoRows = [
+  const academicInfoRows: Array<{ label: string; value: string; icon: string }> = [
     { label: 'Student Code', value: profile.studentCode, icon: 'ri-id-card-line' },
-    { label: 'Email', value: profile.email, icon: 'ri-mail-line' },
     { label: 'Department', value: profile.departmentName, icon: 'ri-building-line' },
     { label: 'Year Level', value: YEAR_LEVEL_LABELS[profile.yearLevel as 0 | 1 | 2 | 3], icon: 'ri-stairs-line' },
-    { label: 'Academic Year', value: profile.academicYearName, icon: 'ri-calendar-line' },
-    { label: 'Semester', value: profile.semesterName, icon: 'ri-book-line' },
+    { label: 'Cumulative GPA', value: profile.cumulativeGPA.toFixed(2), icon: 'ri-bar-chart-line' },
+    { label: 'Total Credits', value: String(profile.totalCreditHours), icon: 'ri-time-line' },
+    { label: 'Academic Advisor', value: profile.academicAdvisorName ?? 'N/A', icon: 'ri-user-star-line' },
+  ];
+
+  const personalInfoRows: Array<{ label: string; value: string; icon: string }> = [
+    { label: 'Email', value: profile.email, icon: 'ri-mail-line' },
     { label: 'Gender', value: GENDER_LABELS[profile.gender as 0 | 1], icon: 'ri-user-line' },
-    { label: 'Date of Birth', value: profile.dateOfBirth ? new Date(profile.dateOfBirth).toLocaleDateString() : '-', icon: 'ri-cake-line' },
+    { label: 'Date of Birth', value: profile.dateOfBirth ? new Date(profile.dateOfBirth).toLocaleDateString() : '—', icon: 'ri-cake-line' },
+    { label: 'National ID', value: profile.nationalId ?? '—', icon: 'ri-fingerprint-line' },
+    { label: 'Nationality', value: profile.nationality ?? '—', icon: 'ri-flag-line' },
+    { label: 'Religion', value: profile.religion ?? '—', icon: 'ri-heart-line' },
+    { label: 'Qualification', value: profile.previousQualification ?? '—', icon: 'ri-file-certificate-line' },
+  ];
+
+  const editFields: Array<{ key: keyof UpdateStudentProfileRequest; label: string; icon: string; type?: string; placeholder: string }> = [
+    { key: 'phoneNumber', label: 'Phone Number', icon: 'ri-phone-line', type: 'tel', placeholder: '+20 1234567890' },
+    { key: 'address', label: 'Address', icon: 'ri-map-pin-line', placeholder: '123 Elm Street' },
+    { key: 'city', label: 'City', icon: 'ri-building-line', placeholder: 'Cairo' },
+    { key: 'fatherPhone', label: "Father's Phone", icon: 'ri-phone-line', type: 'tel', placeholder: '+20 1098765432' },
+    { key: 'fatherJob', label: "Father's Job", icon: 'ri-briefcase-line', placeholder: 'Engineer' },
   ];
 
   return (
@@ -87,7 +101,7 @@ export default function StudentProfilePage() {
         <h1 className="text-xl font-bold text-slate-800">My Profile</h1>
         <button
           type="button"
-          onClick={() => setEditMode(!editMode)}
+          onClick={() => { setEditMode(!editMode); setMessage(null); }}
           className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-medium transition-colors"
         >
           <i className={editMode ? 'ri-close-line' : 'ri-edit-line'} />
@@ -104,16 +118,19 @@ export default function StudentProfilePage() {
       )}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Left card - Avatar & summary */}
+        {/* Left — Avatar + Edit Form */}
         <div className="lg:col-span-1 space-y-4">
           <div className="bg-white rounded-xl border border-gray-100 p-6 text-center">
             <div className="w-20 h-20 rounded-full bg-emerald-600 flex items-center justify-center text-white text-2xl font-bold mx-auto mb-3">
-              {profile.name.charAt(0)}
+              {profile.profilePictureUrl ? (
+                <img src={profile.profilePictureUrl} alt={profile.fullName} className="w-full h-full rounded-full object-cover" />
+              ) : (
+                profile.fullName.charAt(0)
+              )}
             </div>
-            <h2 className="text-base font-bold text-slate-800">{profile.name}</h2>
+            <h2 className="text-base font-bold text-slate-800">{profile.fullName}</h2>
             <p className="text-xs text-slate-500 mt-0.5">{profile.studentCode}</p>
             <p className="text-xs text-slate-400 mt-1">{profile.departmentName}</p>
-
             <div className="mt-4 pt-4 border-t border-gray-100 grid grid-cols-2 gap-3">
               <div>
                 <p className="text-lg font-bold text-slate-800">{profile.cumulativeGPA.toFixed(2)}</p>
@@ -126,36 +143,26 @@ export default function StudentProfilePage() {
             </div>
           </div>
 
+          {/* Edit Form */}
           {editMode && (
             <div className="bg-white rounded-xl border border-gray-100 p-5">
               <h3 className="text-sm font-semibold text-slate-700 mb-3">Edit Information</h3>
               <div className="space-y-3">
-                <div>
-                  <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1.5">Phone Number</label>
-                  <div className="relative">
-                    <i className="ri-phone-line absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
-                    <input
-                      type="tel"
-                      value={form?.phoneNumber || ''}
-                      onChange={(e) => setForm((f) => ({ ...f, phoneNumber: e.target.value }))}
-                      className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
-                      placeholder="Enter phone number"
-                    />
+                {editFields.map((field) => (
+                  <div key={field.key}>
+                    <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1.5">{field.label}</label>
+                    <div className="relative">
+                      <i className={`${field.icon} absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm`} />
+                      <input
+                        type={field.type ?? 'text'}
+                        value={form[field.key] ?? ''}
+                        onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+                        placeholder={field.placeholder}
+                        className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
+                      />
+                    </div>
                   </div>
-                </div>
-                <div>
-                  <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1.5">Address</label>
-                  <div className="relative">
-                    <i className="ri-map-pin-line absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
-                    <input
-                      type="text"
-                      value={form?.address || ''}
-                      onChange={(e) => setForm((f) => ({ ...f, address: e.target.value }))}
-                      className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
-                      placeholder="Enter address"
-                    />
-                  </div>
-                </div>
+                ))}
                 <button
                   type="button"
                   onClick={handleSave}
@@ -176,41 +183,84 @@ export default function StudentProfilePage() {
           )}
         </div>
 
-        {/* Right card - Info grid */}
-        <div className="lg:col-span-2 bg-white rounded-xl border border-gray-100 p-5">
-          <h3 className="text-sm font-semibold text-slate-700 mb-4">Student Information</h3>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-            {infoRows.map((row) => (
-              <div key={row.label} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
-                <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 border border-gray-100">
-                  <i className={`${row.icon} text-slate-400 text-sm`} />
+        {/* Right — Info Sections */}
+        <div className="lg:col-span-2 space-y-4">
+          {/* Academic Info */}
+          <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <h3 className="text-sm font-semibold text-slate-700 mb-4">Academic Information</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {academicInfoRows.map((row) => (
+                <div key={row.label} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
+                  <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 border border-gray-100">
+                    <i className={`${row.icon} text-slate-400 text-sm`} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">{row.label}</p>
+                    <p className="text-sm font-medium text-slate-700 mt-0.5">{row.value}</p>
+                  </div>
                 </div>
-                <div>
-                  <p className="text-[10px] text-slate-400 uppercase tracking-wider">{row.label}</p>
-                  <p className="text-sm font-medium text-slate-700 mt-0.5">{row.value}</p>
-                </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          <div className="mt-4 pt-4 border-t border-gray-100">
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
-              <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 border border-gray-100">
-                <i className="ri-phone-line text-slate-400 text-sm" />
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Phone Number</p>
-                <p className="text-sm font-medium text-slate-700 mt-0.5">{profile.phoneNumber || 'Not provided'}</p>
-              </div>
+          {/* Personal Info */}
+          <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <h3 className="text-sm font-semibold text-slate-700 mb-4">Personal Information</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {personalInfoRows.map((row) => (
+                <div key={row.label} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50">
+                  <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 border border-gray-100">
+                    <i className={`${row.icon} text-slate-400 text-sm`} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">{row.label}</p>
+                    <p className="text-sm font-medium text-slate-700 mt-0.5">{row.value}</p>
+                  </div>
+                </div>
+              ))}
             </div>
-            <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 mt-3">
-              <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 border border-gray-100">
-                <i className="ri-map-pin-line text-slate-400 text-sm" />
-              </div>
-              <div>
-                <p className="text-[10px] text-slate-400 uppercase tracking-wider">Address</p>
-                <p className="text-sm font-medium text-slate-700 mt-0.5">{profile.address || 'Not provided'}</p>
-              </div>
+            {/* Editable fields display */}
+            <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { label: 'Phone', value: profile.phoneNumber, icon: 'ri-phone-line' },
+                { label: 'City', value: profile.city, icon: 'ri-building-line' },
+                { label: 'Address', value: profile.address, icon: 'ri-map-pin-line' },
+              ].map((row) => (
+                <div key={row.label} className={`flex items-start gap-3 p-3 rounded-lg ${editMode ? 'bg-emerald-50/50 border border-emerald-100' : 'bg-gray-50'}`}>
+                  <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 border border-gray-100">
+                    <i className={`${row.icon} text-slate-400 text-sm`} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">
+                      {row.label}{editMode && <span className="ml-1 text-emerald-500">✎</span>}
+                    </p>
+                    <p className="text-sm font-medium text-slate-700 mt-0.5">{row.value ?? 'Not provided'}</p>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Family Info */}
+          <div className="bg-white rounded-xl border border-gray-100 p-5">
+            <h3 className="text-sm font-semibold text-slate-700 mb-4">Family Information</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              {[
+                { label: "Father's Phone", value: profile.fatherPhone, icon: 'ri-phone-line' },
+                { label: "Father's Job", value: profile.fatherJob, icon: 'ri-briefcase-line' },
+              ].map((row) => (
+                <div key={row.label} className={`flex items-start gap-3 p-3 rounded-lg ${editMode ? 'bg-emerald-50/50 border border-emerald-100' : 'bg-gray-50'}`}>
+                  <div className="w-8 h-8 rounded-lg bg-white flex items-center justify-center shrink-0 border border-gray-100">
+                    <i className={`${row.icon} text-slate-400 text-sm`} />
+                  </div>
+                  <div>
+                    <p className="text-[10px] text-slate-400 uppercase tracking-wider">
+                      {row.label}{editMode && <span className="ml-1 text-emerald-500">✎</span>}
+                    </p>
+                    <p className="text-sm font-medium text-slate-700 mt-0.5">{row.value ?? 'Not provided'}</p>
+                  </div>
+                </div>
+              ))}
             </div>
           </div>
         </div>
