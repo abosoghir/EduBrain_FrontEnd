@@ -19,7 +19,7 @@ export default function CourseSchedulesTab() {
 
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState<CourseScheduleItem | null>(null);
-  const [form, setForm] = useState<CreateCourseScheduleForm>({ courseInstanceId: 0, day: 0, startTime: '09:00:00', endTime: '11:00:00', type: 0 });
+  const [form, setForm] = useState<CreateCourseScheduleForm>({ courseInstanceId: 0, day: 0, startTime: '09:00:00', endTime: '11:00:00', scheduleType: 0 });
   const [submitting, setSubmitting] = useState(false);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -51,13 +51,13 @@ export default function CourseSchedulesTab() {
 
   const handleOpenCreate = () => {
     setEditingItem(null);
-    setForm({ courseInstanceId: 0, day: 0, startTime: '09:00:00', endTime: '11:00:00', type: 0 });
+    setForm({ courseInstanceId: 0, day: 0, startTime: '09:00:00', endTime: '11:00:00', scheduleType: 0 });
     setShowModal(true);
   };
 
   const handleOpenEdit = (s: CourseScheduleItem) => {
     setEditingItem(s);
-    setForm({ courseInstanceId: s.courseInstanceId, day: s.day, startTime: s.startTime, endTime: s.endTime, type: s.type, roomId: s.roomId });
+    setForm({ courseInstanceId: s.courseInstanceId, day: s.day, startTime: s.startTime, endTime: s.endTime, scheduleType: s.scheduleType, roomId: s.roomId });
     setShowModal(true);
   };
 
@@ -66,7 +66,7 @@ export default function CourseSchedulesTab() {
     setSubmitting(true);
     try {
       if (editingItem) {
-        const updateForm: UpdateCourseScheduleForm = { day: form.day, startTime: form.startTime, endTime: form.endTime, type: form.type, roomId: form.roomId };
+        const updateForm: UpdateCourseScheduleForm = { day: form.day, startTime: form.startTime, endTime: form.endTime, scheduleType: form.scheduleType, roomId: form.roomId };
         const res = await updateCourseSchedule(editingItem.scheduleId, updateForm);
         if (res.data) { setToast({ msg: res.data.message || 'Schedule updated', type: 'success' }); loadData(); }
         else setToast({ msg: res.error || 'Update failed', type: 'error' });
@@ -112,7 +112,7 @@ export default function CourseSchedulesTab() {
           </select>
           <select value={filters.departmentId ?? ''} onChange={e => setFilters(p => ({ ...p, departmentId: e.target.value ? Number(e.target.value) : undefined }))} className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-200">
             <option value="">All Departments</option>
-            {departments.map(d => <option key={d.id} value={d.id}>{d.description}</option>)}
+            {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
           </select>
           <select value={filters.doctorId ?? ''} onChange={e => setFilters(p => ({ ...p, doctorId: e.target.value ? Number(e.target.value) : undefined }))} className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-200">
             <option value="">All Doctors</option>
@@ -162,7 +162,7 @@ export default function CourseSchedulesTab() {
                   <td className="px-3 py-3 text-center text-xs text-slate-600">{s.roomName || '—'}{s.roomBuilding ? <span className="block text-[10px] text-slate-400">{s.roomBuilding}</span> : null}</td>
                   <td className="px-3 py-3 text-center text-xs font-medium text-slate-700">{DAYS[s.day] || s.day}</td>
                   <td className="px-3 py-3 text-center text-xs text-slate-700">{fmtTime(s.startTime)} – {fmtTime(s.endTime)}</td>
-                  <td className="px-3 py-3 text-center"><span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${s.type === 0 ? 'bg-blue-50 text-blue-600' : s.type === 1 ? 'bg-amber-50 text-amber-600' : 'bg-purple-50 text-purple-600'}`}>{s.typeDisplay || SCHEDULE_TYPE_LABELS[s.type as 0|1|2]}</span></td>
+                  <td className="px-3 py-3 text-center"><span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${s.scheduleType === 0 ? 'bg-blue-50 text-blue-600' : s.scheduleType === 1 ? 'bg-amber-50 text-amber-600' : 'bg-purple-50 text-purple-600'}`}>{s.scheduleTypeDisplay || SCHEDULE_TYPE_LABELS[s.scheduleType as 0|1|2]}</span></td>
                   <td className="px-3 py-3 text-center text-xs text-slate-600">{s.enrolledCount}/{s.maxCapacity}</td>
                   <td className="px-3 py-3 text-center"><div className="flex items-center justify-center gap-1">
                     <button type="button" onClick={() => handleOpenEdit(s)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-slate-500"><i className="ri-pencil-line text-sm" /></button>
@@ -188,7 +188,7 @@ export default function CourseSchedulesTab() {
               )}
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block text-xs font-medium text-slate-600 mb-1">Day *</label><select value={form.day} onChange={e => setForm(p => ({ ...p, day: Number(e.target.value) }))} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200">{DAYS.map((d, i) => <option key={d} value={i}>{d}</option>)}</select></div>
-                <div><label className="block text-xs font-medium text-slate-600 mb-1">Type *</label><select value={form.type} onChange={e => setForm(p => ({ ...p, type: Number(e.target.value) }))} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"><option value={0}>Lecture</option><option value={1}>Lab</option><option value={2}>Tutorial</option></select></div>
+                <div><label className="block text-xs font-medium text-slate-600 mb-1">Type *</label><select value={form.scheduleType} onChange={e => setForm(p => ({ ...p, scheduleType: Number(e.target.value) }))} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200"><option value={0}>Lecture</option><option value={1}>Lab</option><option value={2}>Tutorial</option></select></div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block text-xs font-medium text-slate-600 mb-1">Start Time *</label><input type="time" required value={form.startTime?.slice(0,5)} onChange={e => setForm(p => ({ ...p, startTime: e.target.value + ':00' }))} className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200" /></div>

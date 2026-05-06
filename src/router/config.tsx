@@ -27,6 +27,8 @@ import AdminRooms from "../pages/admin/rooms/page";
 import AdminAcademicYears from "../pages/admin/academic-years/page";
 import AdminNotifications from "../pages/admin/notifications/page";
 import AdminSettings from "../pages/admin/settings/page";
+import AdminCourseInstances from "../pages/admin/course-instances/page";
+import AdminRegistration from "../pages/admin/registration/page";
 
 /* Student */
 import StudentCourses from "../pages/student/courses/page";
@@ -165,6 +167,22 @@ const routes: RouteObject[] = [
     element: (
       <ProtectedRoute allowedRole={Role.Admin}>
         <PortalLayout allowedRole={Role.Admin}><AdminSettings /></PortalLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/course-instances",
+    element: (
+      <ProtectedRoute allowedRole={Role.Admin}>
+        <PortalLayout allowedRole={Role.Admin}><AdminCourseInstances /></PortalLayout>
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: "/admin/registration",
+    element: (
+      <ProtectedRoute allowedRole={Role.Admin}>
+        <PortalLayout allowedRole={Role.Admin}><AdminRegistration /></PortalLayout>
       </ProtectedRoute>
     ),
   },

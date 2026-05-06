@@ -22,7 +22,12 @@ export default function AdminCourses() {
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
 
-  const emptyCreate: CreateCourseForm = { name: '', code: '', description: '', creditHours: 3, theoryHours: 2, practicalHours: 2, price: undefined, pricePerCreditHour: undefined, courseType: 0, passingGrade: 50 };
+  const emptyCreate: CreateCourseForm = {
+    name: '', code: '', description: '', creditHours: 3, theoryHours: 2, practicalHours: 2,
+    price: undefined, pricePerCreditHour: undefined, courseType: 0, passingGrade: 50,
+    departmentIds: [],
+    gradeWeights: { midterm: 30, final: 40, practical: 10, quizzes: 10, oral: 10 },
+  };
   const [createForm, setCreateForm] = useState<CreateCourseForm>(emptyCreate);
   const [editForm, setEditForm] = useState<UpdateCourseForm>({});
 
@@ -122,7 +127,7 @@ export default function AdminCourses() {
         </div>
         <select value={deptFilter} onChange={e => setDeptFilter(e.target.value)} className={selectCls}>
           <option value="">All Departments</option>
-          {departments.map(d => <option key={d.id} value={d.id}>{d.description}</option>)}
+          {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
         <select value={typeFilter} onChange={e => setTypeFilter(e.target.value)} className={selectCls}>
           <option value="">All Types</option>
@@ -157,9 +162,9 @@ export default function AdminCourses() {
                   <td className="px-5 py-3 text-center text-xs text-slate-600">{c.theoryHours}/{c.practicalHours}</td>
                   <td className="px-5 py-3 text-center"><span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${c.courseType === 0 ? 'bg-slate-50 text-slate-600' : 'bg-emerald-50 text-emerald-600'}`}>{COURSE_TYPE_LABELS[c.courseType as 0 | 1]}</span></td>
                   <td className="px-5 py-3 text-center text-xs text-slate-600">{c.passingGrade}%</td>
-                  <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{c.prerequisitesCount}</td>
-                  <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{c.departmentsCount}</td>
-                  <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{c.instancesCount}</td>
+                  <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{c.prerequisites?.length ?? '—'}</td>
+                  <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{c.departments?.length ?? '—'}</td>
+                  <td className="px-5 py-3 text-center text-xs text-slate-500">—</td>
                   <td className="px-5 py-3 text-center">
                     <div className="flex items-center justify-center gap-1">
                       <button type="button" onClick={() => handleView(c.id)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-50 text-blue-500" title="View"><i className="ri-eye-line text-sm" /></button>
@@ -218,9 +223,49 @@ export default function AdminCourses() {
                 <div><label className="block text-xs font-medium text-slate-600 mb-1">Price</label>
                   <input type="number" min={0} step={0.01} value={createForm.price ?? ''} onChange={e => setCreateForm(p => ({ ...p, price: e.target.value ? Number(e.target.value) : undefined }))} className={inputCls} placeholder="Optional" /></div>
               </div>
+              {/* Departments */}
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Departments *</label>
+                <div className="border border-gray-200 rounded-lg p-2 max-h-28 overflow-y-auto space-y-1">
+                  {departments.map(d => (
+                    <label key={d.id} className="flex items-center gap-2 text-xs text-slate-600 cursor-pointer hover:bg-gray-50 px-1 py-0.5 rounded">
+                      <input type="checkbox" checked={createForm.departmentIds.includes(d.id)}
+                        onChange={e => setCreateForm(p => ({
+                          ...p,
+                          departmentIds: e.target.checked
+                            ? [...p.departmentIds, d.id]
+                            : p.departmentIds.filter(id => id !== d.id)
+                        }))}
+                        className="rounded border-gray-300" />
+                      {d.name}
+                    </label>
+                  ))}
+                  {departments.length === 0 && <p className="text-xs text-slate-400 px-1">No departments available</p>}
+                </div>
+              </div>
+              {/* Grade Weights */}
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Grade Weights (must sum to 100%)</label>
+                <div className="grid grid-cols-5 gap-2">
+                  {(['midterm', 'final', 'practical', 'quizzes', 'oral'] as const).map(key => (
+                    <div key={key}>
+                      <label className="block text-[10px] text-slate-500 mb-1 capitalize">{key}</label>
+                      <input type="number" min={0} max={100} value={createForm.gradeWeights[key]}
+                        onChange={e => setCreateForm(p => ({ ...p, gradeWeights: { ...p.gradeWeights, [key]: Number(e.target.value) } }))}
+                        className="w-full px-2 py-1.5 rounded-lg border border-gray-200 text-xs focus:outline-none focus:ring-2 focus:ring-slate-200" />
+                    </div>
+                  ))}
+                </div>
+                <p className="text-[10px] text-slate-400 mt-1">
+                  Total: <span className={`font-semibold ${
+                    Object.values(createForm.gradeWeights).reduce((a, b) => a + b, 0) === 100
+                      ? 'text-emerald-600' : 'text-red-500'
+                  }`}>{Object.values(createForm.gradeWeights).reduce((a, b) => a + b, 0)}%</span>
+                </p>
+              </div>
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-gray-50 transition-colors">Cancel</button>
-                <button type="submit" disabled={submitting || !createForm.name || !createForm.code} className="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-50">
+                <button type="submit" disabled={submitting || !createForm.name || !createForm.code || createForm.departmentIds.length === 0 || Object.values(createForm.gradeWeights).reduce((a,b)=>a+b,0) !== 100} className="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-50">
                   {submitting ? <span className="flex items-center gap-1"><i className="ri-loader-4-line animate-spin" /> Creating...</span> : 'Create Course'}
                 </button>
               </div>

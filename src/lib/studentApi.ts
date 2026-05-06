@@ -101,9 +101,8 @@ export async function createStudent(
   form: CreateStudentForm
 ): Promise<{ data: CreateStudentResponse | null; error?: string }> {
   try {
-    const res = await api.post<ApiResponse<CreateStudentResponse>>('/api/users/students', form);
+    const res = await api.post<ApiResponse<CreateStudentResponse>>('/api/admin/users/students', form);
     const d = res.data as ApiResponse<CreateStudentResponse>;
-    // Handle the { success, message, data } response shape
     const raw = res.data as unknown as { success?: boolean; data?: CreateStudentResponse; message?: string };
     if (raw?.success && raw.data) {
       return { data: raw.data };
@@ -111,7 +110,7 @@ export async function createStudent(
     if (d?.isSuccess && d?.hasData && d.data) {
       return { data: d.data };
     }
-    return { data: null, error: getErrorMessage(res) };
+    return { data: null, error: (d?.error?.description) || (raw as { message?: string })?.message || 'Create failed' };
   } catch {
     return { data: null, error: 'Failed to create student' };
   }
@@ -167,7 +166,7 @@ export async function fetchDepartments(): Promise<DepartmentOption[]> {
 
 export async function fetchAdvisors(): Promise<AdvisorOption[]> {
   try {
-    const res = await api.get<ApiResponse<AdvisorOption[]>>('/admin/users/advisors');
+    const res = await api.get<ApiResponse<AdvisorOption[]>>('/api/admin/users/advisors');
     const data = unwrap(res);
     if (data && Array.isArray(data)) return data;
     const raw = res.data as unknown as AdvisorOption[];

@@ -1,128 +1,179 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { api } from '@/lib/api';
-import type { ApiResponse } from '@/lib/api';
-import type { DoctorGradeStudent, SubmitGradesRequest } from '@/types/doctor';
+import React, { useState, useCallback, useMemo } from 'react';
+import { fetchDoctorCourses, fetchCourseGrades, updateStudentGrades, exportCourseGrades } from '@/lib/doctorPortalApi';
+import type { DoctorCourse, DoctorGradesData, DoctorGradeStudent, GradeWeights, SubmitGradesRequest } from '@/types/doctor';
 
+// Grade enum → letter
+const GRADE_LETTER: Record<number, string> = {
+  0: 'A+', 1: 'A', 2: 'A−', 3: 'B+', 4: 'B', 5: 'C+', 6: 'C', 7: 'D+', 8: 'D', 9: 'D−', 10: 'F',
+};
 
-interface GradeEntry {
-  studentId: string;
-  gradeValue: string;
-}
+const GRADE_COLOR: Record<number, string> = {
+  0: 'text-emerald-600', 1: 'text-emerald-600', 2: 'text-emerald-500',
+  3: 'text-blue-600', 4: 'text-blue-500',
+  5: 'text-amber-600', 6: 'text-amber-500',
+  7: 'text-orange-500', 8: 'text-orange-400', 9: 'text-orange-400',
+  10: 'text-red-600',
+};
+
+type GradeField = 'midterm' | 'final' | 'practical' | 'quizzes' | 'oral';
+const GRADE_FIELDS: GradeField[] = ['midterm', 'final', 'practical', 'quizzes', 'oral'];
+
+// Pending edit map: enrollmentId → partial grades
+type EditMap = Record<number, Partial<Record<GradeField, string>>>;
 
 export default function DoctorGrades() {
-  const [students, setStudents] = useState<DoctorGradeStudent[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [selectedGradeType, setSelectedGradeType] = useState<string>('');
-  const [entries, setEntries] = useState<Record<string, string>>();
-  const [saving, setSaving] = useState(false);
+  const [courses, setCourses] = useState<DoctorCourse[]>([]);
+  const [coursesLoaded, setCoursesLoaded] = useState(false);
+  const [selectedCourseId, setSelectedCourseId] = useState<number | ''>('');
+  const [gradesData, setGradesData] = useState<DoctorGradesData | null>(null);
+  const [gradesLoading, setGradesLoading] = useState(false);
+
+  // Per-cell edit state
+  const [editMap, setEditMap] = useState<EditMap>({});
+  const [savingId, setSavingId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  useEffect(() => {
-    api.get<ApiResponse<DoctorGradeStudent[]>>('/api/doctor/grades/students')
-      .then((res) => {
-        if (res.data.isSuccess && res.data.hasData && res.data.data) {
-          setStudents(res.data.data);
-        } else {
-          setStudents([]);
-        }
-      })
-      .catch(() => {
-        setStudents([]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  // Load courses on mount
+  useState(() => {
+    fetchDoctorCourses().then(({ data }) => {
+      setCourses(data?.courses ?? []);
+      setCoursesLoaded(true);
+    });
+  });
 
-  const gradeTypes = useMemo(() => {
-    if (!students.length) return [];
-    const types = new Set<string>();
-    students.forEach((s) => s.gradeItems.forEach((g) => types.add(g.gradeType)));
-    return Array.from(types);
-  }, [students]);
-
-  const currentGradeType = useMemo(() => {
-    if (!selectedGradeType || !students.length) return null;
-    return students[0]?.gradeItems.find((g) => g.gradeType === selectedGradeType);
-  }, [selectedGradeType, students]);
-
-  const maxGrade = currentGradeType?.maxGrade ?? 100;
-
-  const handleEntryChange = useCallback((studentId: string, value: string) => {
-    setEntries((prev) => ({ ...prev, [studentId]: value }));
-  }, []);
-
-  const handleSubmit = useCallback(async () => {
-    if (!selectedGradeType || !students.length) return;
-    setSaving(true);
+  const loadGrades = useCallback(async (courseInstanceId: number) => {
+    setGradesLoading(true);
+    setEditMap({});
     setMessage(null);
-    const payload: SubmitGradesRequest = {
-      courseId: students[0]?.gradeItems.length ? 101 : 0,
-      gradeType: selectedGradeType,
-      grades: Object.entries(entries)
-        .filter(([, v]) => v.trim() !== '')
-        .map(([studentId, gradeValue]) => ({ studentId, gradeValue: parseFloat(gradeValue) })),
-    };
-    try {
-      const res = await api.post<ApiResponse<null>>('/api/doctor/grades', payload);
-      if (res.data.isSuccess) {
-        setMessage({ type: 'success', text: 'Grades submitted successfully.' });
-        setEntries({});
-      } else {
-        setMessage({ type: 'error', text: res.data.error?.description || 'Failed to submit grades.' });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Network error. Please try again.' });
-    } finally {
-      setSaving(false);
+    const { data, error } = await fetchCourseGrades(courseInstanceId);
+    if (data) {
+      setGradesData(data);
+    } else {
+      setGradesData(null);
+      setMessage({ type: 'error', text: error ?? 'Failed to load grades.' });
     }
-  }, [selectedGradeType, students, entries]);
+    setGradesLoading(false);
+  }, []);
 
-  const gradeColor = (grade: number) => {
-    if (grade >= 90) return 'text-emerald-600';
-    if (grade >= 80) return 'text-blue-600';
-    if (grade >= 70) return 'text-amber-600';
-    if (grade >= 60) return 'text-orange-600';
-    return 'text-red-600';
+  const handleCourseChange = useCallback((id: number | '') => {
+    setSelectedCourseId(id);
+    if (id) loadGrades(Number(id));
+    else setGradesData(null);
+  }, [loadGrades]);
+
+  const setCell = useCallback((enrollmentId: number, field: GradeField, value: string) => {
+    setEditMap((prev) => ({
+      ...prev,
+      [enrollmentId]: { ...prev[enrollmentId], [field]: value },
+    }));
+  }, []);
+
+  const handleSaveRow = useCallback(async (student: DoctorGradeStudent) => {
+    const edits = editMap[student.enrollmentId];
+    if (!edits || Object.keys(edits).length === 0) return;
+    setSavingId(student.enrollmentId);
+    setMessage(null);
+
+    const payload: SubmitGradesRequest = {};
+    GRADE_FIELDS.forEach((f) => {
+      const raw = edits[f];
+      if (raw !== undefined) {
+        payload[f] = raw === '' ? null : parseFloat(raw);
+      }
+    });
+
+    const { success, error } = await updateStudentGrades(student.enrollmentId, payload);
+    if (success) {
+      // Optimistically update local data
+      setGradesData((prev) => {
+        if (!prev) return prev;
+        return {
+          ...prev,
+          students: prev.students.map((s) =>
+            s.enrollmentId === student.enrollmentId
+              ? {
+                  ...s,
+                  midterm: payload.midterm !== undefined ? payload.midterm : s.midterm,
+                  final: payload.final !== undefined ? payload.final : s.final,
+                  practical: payload.practical !== undefined ? payload.practical : s.practical,
+                  quizzes: payload.quizzes !== undefined ? payload.quizzes : s.quizzes,
+                  oral: payload.oral !== undefined ? payload.oral : s.oral,
+                }
+              : s
+          ),
+        };
+      });
+      setEditMap((prev) => {
+        const next = { ...prev };
+        delete next[student.enrollmentId];
+        return next;
+      });
+      setMessage({ type: 'success', text: `Grades updated for ${student.studentName}.` });
+    } else {
+      setMessage({ type: 'error', text: error ?? 'Failed to update grades.' });
+    }
+    setSavingId(null);
+  }, [editMap]);
+
+  const activeColumns = useMemo<GradeField[]>(() => {
+    if (!gradesData) return [];
+    return GRADE_FIELDS.filter((f) => (gradesData.weights[f] ?? 0) > 0);
+  }, [gradesData]);
+
+  const currentVal = (student: DoctorGradeStudent, field: GradeField) => {
+    const edit = editMap[student.enrollmentId]?.[field];
+    if (edit !== undefined) return edit;
+    const v = student[field];
+    return v !== null && v !== undefined ? String(v) : '';
   };
+
+  const totalScore = (s: DoctorGradeStudent): string => {
+    if (s.totalScore === null || s.totalScore === undefined) return '—';
+    return s.totalScore.toFixed(1);
+  };
+
+  const weights = gradesData?.weights as GradeWeights | undefined;
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-slate-800 mb-6">Grade Entry</h1>
+      <div className="flex items-center justify-between mb-6">
+        <h1 className="text-xl font-bold text-slate-800">Grade Entry</h1>
+        {gradesData && (
+          <button
+            type="button"
+            onClick={() => exportCourseGrades(Number(selectedCourseId))}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-gray-200 bg-white text-xs text-slate-600 hover:bg-gray-50 transition-colors"
+          >
+            <i className="ri-download-line" />
+            Export Excel
+          </button>
+        )}
+      </div>
 
-      {loading && (
-        <div className="flex items-center gap-2 text-slate-400 text-sm mb-6">
+      {/* Course picker */}
+      <div className="bg-white rounded-xl border border-gray-100 p-4 mb-6">
+        <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1.5">Select Course</label>
+        <select
+          value={selectedCourseId}
+          onChange={(e) => handleCourseChange(e.target.value ? Number(e.target.value) : '')}
+          className="w-full sm:w-80 px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-200"
+        >
+          <option value="">{coursesLoaded ? 'Choose a course...' : 'Loading...'}</option>
+          {courses.map((c) => (
+            <option key={c.courseInstanceId} value={c.courseInstanceId}>
+              {c.courseCode} — {c.courseName}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {gradesLoading && (
+        <div className="flex items-center gap-2 text-slate-400 text-sm">
           <i className="ri-loader-4-line animate-spin" />
-          Loading students...
+          Loading grades...
         </div>
       )}
 
-      {/* Grade Type Selector */}
-      {gradeTypes.length > 0 && (
-        <div className="flex items-center gap-2 mb-6">
-          <span className="text-xs text-slate-500">Select assessment:</span>
-          <div className="flex gap-1">
-            {gradeTypes.map((type) => (
-              <button
-                key={type}
-                type="button"
-                onClick={() => {
-                  setSelectedGradeType(type);
-                  setEntries({});
-                  setMessage(null);
-                }}
-                className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors whitespace-nowrap ${
-                  selectedGradeType === type
-                    ? 'bg-violet-600 text-white'
-                    : 'bg-white border border-gray-100 text-slate-600 hover:bg-gray-50'
-                }`}
-              >
-                {type}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Message */}
       {message && (
         <div className={`mb-4 p-3 rounded-lg text-sm ${
           message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'
@@ -131,133 +182,127 @@ export default function DoctorGrades() {
         </div>
       )}
 
-      {/* Grade Entry Form */}
-      {selectedGradeType && students.length > 0 && (
-        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden mb-6">
-          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-700">{selectedGradeType}</h2>
-              <p className="text-[10px] text-slate-400">Max grade: {maxGrade} points</p>
-            </div>
-            <button
-              type="button"
-              onClick={handleSubmit}
-              disabled={saving}
-              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors disabled:opacity-60"
-            >
-              {saving ? <i className="ri-loader-4-line animate-spin" /> : <i className="ri-save-line" />}
-              Submit Grades
-            </button>
+      {gradesData && (
+        <>
+          {/* Weights legend */}
+          <div className="flex flex-wrap gap-2 mb-4">
+            {activeColumns.map((f) => (
+              <span key={f} className="px-2 py-0.5 rounded-full bg-slate-100 text-[10px] text-slate-600 font-medium capitalize">
+                {f}: {weights?.[f] ?? 0} pts
+              </span>
+            ))}
+            <span className="px-2 py-0.5 rounded-full bg-violet-100 text-[10px] text-violet-700 font-medium">
+              Total: {weights?.total ?? 100} pts
+            </span>
           </div>
-          <div className="overflow-x-auto">
-            <table className="w-full">
-              <thead>
-                <tr className="bg-gray-50">
-                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Student</th>
-                  <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Current Grade</th>
-                  <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Previous {selectedGradeType}</th>
-                  <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Enter Grade</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100">
-                {students.map((s) => {
-                  const gradeItem = s.gradeItems.find((g) => g.gradeType === selectedGradeType);
-                  const existingValue = gradeItem?.gradeValue;
-                  return (
-                    <tr key={s.studentId} className="hover:bg-gray-50/50 transition-colors">
-                      <td className="px-5 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-[10px] font-bold text-violet-600">
-                            {s.studentName.charAt(0)}
-                          </div>
-                          <div>
-                            <p className="text-sm font-medium text-slate-700">{s.studentName}</p>
-                            <p className="text-[10px] text-slate-400">{s.studentCode}</p>
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <span className={`text-sm font-bold ${gradeColor(s.currentGrade ?? 0)}`}>
-                          {s.currentGrade ?? '-'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <span className="text-xs text-slate-500">
-                          {existingValue !== undefined ? `${existingValue}/${maxGrade}` : '-'}
-                        </span>
-                      </td>
-                      <td className="px-5 py-3 text-center">
-                        <input
-                          type="number"
-                          min={0}
-                          max={maxGrade}
-                          step={0.5}
-                          value={entries[s.studentId] ?? ''}
-                          onChange={(e) => handleEntryChange(s.studentId, e.target.value)}
-                          placeholder={`0-${maxGrade}`}
-                          className="w-20 text-center px-2 py-1.5 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
-                        />
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        </div>
-      )}
 
-      {/* Grade Overview */}
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100">
-          <h2 className="text-sm font-semibold text-slate-700">Grade Overview</h2>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="text-left px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Student</th>
-                {gradeTypes.map((type) => (
-                  <th key={type} className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">{type}</th>
-                ))}
-                <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Total</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {students.map((s) => (
-                <tr key={s.studentId} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-5 py-3">
-                    <div className="flex items-center gap-2">
-                      <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-[10px] font-bold text-violet-600">
-                        {s.studentName.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-slate-700">{s.studentName}</p>
-                        <p className="text-[10px] text-slate-400">{s.studentCode}</p>
-                      </div>
-                    </div>
-                  </td>
-                  {gradeTypes.map((type) => {
-                    const item = s.gradeItems.find((g) => g.gradeType === type);
+          {/* Grade spreadsheet */}
+          <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+            <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-700">{gradesData.courseName}</h2>
+              <span className="text-xs text-slate-400">{gradesData.students.length} students</span>
+            </div>
+            <div className="overflow-x-auto">
+              <table className="w-full">
+                <thead>
+                  <tr className="bg-gray-50">
+                    <th className="sticky left-0 bg-gray-50 text-left px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider min-w-[180px]">Student</th>
+                    {activeColumns.map((f) => (
+                      <th key={f} className="text-center px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider min-w-[110px] capitalize">
+                        {f}<br />
+                        <span className="text-[9px] font-normal text-slate-400">/ {weights?.[f] ?? 0}</span>
+                      </th>
+                    ))}
+                    <th className="text-center px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider min-w-[80px]">Total</th>
+                    <th className="text-center px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider min-w-[60px]">Grade</th>
+                    <th className="text-center px-4 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider min-w-[80px]">Action</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-100">
+                  {gradesData.students.map((s) => {
+                    const isDirty = Object.keys(editMap[s.enrollmentId] ?? {}).length > 0;
+                    const isSaving = savingId === s.enrollmentId;
                     return (
-                      <td key={type} className="px-5 py-3 text-center">
-                        <span className={`text-xs font-medium ${item?.gradeValue !== undefined ? gradeColor((item.gradeValue / item.maxGrade) * 100) : 'text-slate-400'}`}>
-                          {item?.gradeValue !== undefined ? `${item.gradeValue}/${item.maxGrade}` : '-'}
-                        </span>
-                      </td>
+                      <tr
+                        key={s.enrollmentId}
+                        className={`hover:bg-gray-50/50 transition-colors ${isDirty ? 'bg-violet-50/30' : ''}`}
+                      >
+                        <td className="sticky left-0 bg-inherit px-5 py-3">
+                          <div className="flex items-center gap-2">
+                            <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-[10px] font-bold text-violet-600">
+                              {s.studentName.charAt(0)}
+                            </div>
+                            <div>
+                              <p className="text-sm font-medium text-slate-700">{s.studentName}</p>
+                              <p className="text-[10px] text-slate-400">{s.studentCode}</p>
+                            </div>
+                          </div>
+                        </td>
+                        {activeColumns.map((f) => {
+                          const max = weights?.[f] ?? 0;
+                          return (
+                            <td key={f} className="px-4 py-3 text-center">
+                              <input
+                                type="number"
+                                min={0}
+                                max={max}
+                                step={0.5}
+                                value={currentVal(s, f)}
+                                onChange={(e) => setCell(s.enrollmentId, f, e.target.value)}
+                                placeholder="—"
+                                className={`w-20 text-center px-2 py-1.5 rounded-lg border text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 transition-colors ${
+                                  editMap[s.enrollmentId]?.[f] !== undefined
+                                    ? 'border-violet-300 bg-violet-50'
+                                    : 'border-gray-200 bg-white'
+                                }`}
+                              />
+                            </td>
+                          );
+                        })}
+                        <td className="px-4 py-3 text-center">
+                          <span className="text-sm font-bold text-slate-700">{totalScore(s)}</span>
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          {s.letterGrade !== null && s.letterGrade !== undefined ? (
+                            <span className={`text-sm font-bold ${GRADE_COLOR[s.letterGrade] ?? 'text-slate-500'}`}>
+                              {GRADE_LETTER[s.letterGrade] ?? '—'}
+                            </span>
+                          ) : (
+                            <span className="text-xs text-slate-400">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center">
+                          <button
+                            type="button"
+                            disabled={!isDirty || isSaving}
+                            onClick={() => handleSaveRow(s)}
+                            className={`px-3 py-1 rounded-lg text-[10px] font-medium transition-colors ${
+                              isDirty && !isSaving
+                                ? 'bg-violet-600 text-white hover:bg-violet-700'
+                                : 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                            }`}
+                          >
+                            {isSaving ? <i className="ri-loader-4-line animate-spin" /> : 'Save'}
+                          </button>
+                        </td>
+                      </tr>
                     );
                   })}
-                  <td className="px-5 py-3 text-center">
-                    <span className={`text-sm font-bold ${gradeColor(s.currentGrade ?? 0)}`}>
-                      {s.currentGrade ?? '-'}
-                    </span>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </>
+      )}
+
+      {!selectedCourseId && !gradesLoading && (
+        <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
+          <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+            <i className="ri-bar-chart-line text-xl text-slate-400" />
+          </div>
+          <p className="text-sm text-slate-400">Select a course to view and enter grades.</p>
         </div>
-      </div>
+      )}
     </div>
   );
 }

@@ -23,7 +23,7 @@ export default function DepartmentDetailPanel({ department: d, onClose, onRemove
               <span className="inline-flex items-center justify-center w-8 h-8 rounded-lg bg-slate-100 text-[10px] font-bold text-slate-600">{d.code}</span>
               <h2 className="text-sm font-semibold text-slate-800">{d.description}</h2>
             </div>
-            <p className="text-[10px] text-slate-400 mt-0.5">{d.departmentType} · Head: {d.headOfDepartmentName || 'None assigned'}</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">{d.departmentType} · Head: {d.headDoctorName || 'None assigned'}</p>
           </div>
           <button type="button" onClick={onClose} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600 rounded-lg hover:bg-gray-100"><i className="ri-close-line text-lg" /></button>
         </div>
@@ -53,7 +53,7 @@ export default function DepartmentDetailPanel({ department: d, onClose, onRemove
                 <div className="grid grid-cols-2 gap-y-2">
                   <div><span className="text-slate-400">Code:</span> <span className="font-medium text-slate-700">{d.code}</span></div>
                   <div><span className="text-slate-400">Type:</span> <span className="font-medium text-slate-700">{d.departmentType}</span></div>
-                  <div className="col-span-2"><span className="text-slate-400">Head:</span> <span className="font-medium text-slate-700">{d.headOfDepartmentName || 'None assigned'}</span></div>
+                  <div className="col-span-2"><span className="text-slate-400">Head:</span> <span className="font-medium text-slate-700">{d.headDoctorName || 'None assigned'}</span></div>
                 </div>
               </div>
             </div>

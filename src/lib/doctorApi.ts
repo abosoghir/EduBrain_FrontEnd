@@ -81,7 +81,7 @@ export async function createDoctor(
   form: CreateDoctorForm
 ): Promise<{ data: CreateDoctorResponse | null; error?: string }> {
   try {
-    const res = await api.post<ApiResponse<CreateDoctorResponse>>('/api/users/doctors', form);
+    const res = await api.post<ApiResponse<CreateDoctorResponse>>('/api/admin/users/doctors', form);
     const raw = res.data as unknown as { success?: boolean; data?: CreateDoctorResponse; message?: string };
     if (raw?.success && raw.data) return { data: raw.data };
     const d = res.data as ApiResponse<CreateDoctorResponse>;

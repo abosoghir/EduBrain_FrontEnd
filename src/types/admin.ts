@@ -1,5 +1,6 @@
 // ============================================================
 // Admin Types — Aligned with Backend API Contract
+// API Integration Document: API_Integration_AdminPortal.md
 // ============================================================
 
 // ---- Generic Paginated Response ----
@@ -14,7 +15,411 @@ export interface PaginatedResponse<T> {
   hasNextPage: boolean;
 }
 
-// ---- Student List (GET /api/students) ----
+// ============================================================
+// DASHBOARD (GET /api/admin/dashboard/stats)
+// ============================================================
+
+export interface DashboardStats {
+  totalStudents: number;
+  totalDoctors: number;
+  totalCourses: number;
+  activeCourseInstances: number;
+  registrationStatus: string; // "Open" | "Closed"
+  unpaidFeesCount: number;
+  currentAcademicYear: string;
+  currentSemester: string;
+}
+
+export interface ActivityItem {
+  id: number;
+  event: string;
+  performedBy: string;
+  timestamp: string;
+}
+
+// ============================================================
+// ACADEMIC YEARS (GET /api/admin/academic-years)
+// ============================================================
+
+export interface AcademicYearListItem {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  semestersCount: number;
+  status: string; // "Active" | "Inactive"
+}
+
+export interface SemesterItem {
+  id: number;
+  semesterNumber: number;              // 0=First, 1=Second, 2=Summer
+  semesterNumberDisplay: string;       // "First" | "Second" | "Summer"
+  startDate: string;
+  endDate: string;
+  midtermStart: string | null;
+  midtermEnd: string | null;
+  finalExamStart: string | null;
+  finalExamEnd: string | null;
+  maxCreditHoursPerStudent: number;
+  minCreditHoursPerStudent: number;
+  tuitionFees: number | null;
+  isCurrent: boolean;
+  courseInstancesCount: number;
+}
+
+export interface AcademicYearDetail {
+  id: number;
+  name: string;
+  startDate: string;
+  endDate: string;
+  semesters: SemesterItem[];
+}
+
+// Create Academic Year (POST /api/admin/academic-years)
+export interface CreateAcademicYearForm {
+  name: string;
+  startDate: string;
+  endDate: string;
+}
+
+// Update Academic Year (PUT /api/admin/academic-years/{id})
+export interface UpdateAcademicYearForm {
+  name?: string;
+  startDate?: string;
+  endDate?: string;
+}
+
+// Create Semester (POST /api/admin/academic-years/{academicYearId}/semesters)
+export interface CreateSemesterForm {
+  semesterNumber: number;              // 0=First, 1=Second, 2=Summer
+  startDate: string;
+  endDate: string;
+  midtermStart?: string | null;
+  midtermEnd?: string | null;
+  finalExamStart?: string | null;
+  finalExamEnd?: string | null;
+  maxCreditHoursPerStudent?: number;
+  minCreditHoursPerStudent?: number;
+  tuitionFees?: number | null;
+  isCurrent?: boolean;
+}
+
+// Update Semester (PUT /api/admin/semesters/{id})
+export interface UpdateSemesterForm {
+  startDate?: string;
+  endDate?: string;
+  midtermStart?: string | null;
+  midtermEnd?: string | null;
+  finalExamStart?: string | null;
+  finalExamEnd?: string | null;
+  maxCreditHoursPerStudent?: number;
+  minCreditHoursPerStudent?: number;
+  tuitionFees?: number | null;
+}
+
+// ============================================================
+// REGISTRATION (GET /api/admin/registration/status)
+// ============================================================
+
+export interface RegistrationStatus {
+  semesterId: number;
+  semesterName: string;
+  status: string; // "Open" | "Closed"
+  openedOn: string | null;
+  closesOn: string | null;
+  totalRegistrations: number;
+  pendingApprovals: number;
+}
+
+// Open Registration (POST /api/admin/registration/open)
+export interface OpenRegistrationForm {
+  semesterId: number;
+  openDate: string;
+  closeDate: string;
+}
+
+// Close Registration (POST /api/admin/registration/close)
+export interface CloseRegistrationForm {
+  semesterId: number;
+}
+
+// ============================================================
+// COURSES (GET /api/admin/courses)
+// ============================================================
+
+export interface GradeWeights {
+  midterm: number;
+  final: number;
+  practical: number;
+  quizzes: number;
+  oral: number;
+}
+
+export interface CourseListItem {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  creditHours: number;
+  theoryHours: number;
+  practicalHours: number;
+  courseType: number;              // 0=Compulsory, 1=Elective
+  courseTypeDisplay: string;
+  price: number | null;
+  pricePerCreditHour: number | null;
+  passingGrade: number;
+  departments: string[];
+  prerequisites: string[];
+  gradeWeights: GradeWeights;
+}
+
+export interface CoursePrerequisite {
+  id: number;
+  code: string;
+  name: string;
+}
+
+export interface CourseDepartment {
+  id: number;
+  name: string;
+  code: string;
+}
+
+export interface CourseInstance {
+  id: number;
+  semesterName: string;
+  doctorName: string;
+  maxCapacity: number;
+  currentEnrolled: number;
+  isFull: boolean;
+}
+
+export interface CourseDetail {
+  id: number;
+  code: string;
+  name: string;
+  description: string;
+  creditHours: number;
+  theoryHours: number;
+  practicalHours: number;
+  price: number | null;
+  pricePerCreditHour: number | null;
+  courseType: number;
+  courseTypeDisplay: string;
+  passingGrade: number;
+  gradeWeights: GradeWeights;
+  departments: CourseDepartment[];
+  prerequisites: CoursePrerequisite[];
+  instances: CourseInstance[];
+}
+
+// Create Course (POST /api/admin/courses)
+export interface CreateCourseForm {
+  code: string;
+  name: string;
+  description?: string;
+  creditHours: number;
+  theoryHours: number;
+  practicalHours: number;
+  courseType: number;
+  price?: number;
+  pricePerCreditHour?: number;
+  passingGrade: number;
+  departmentIds: number[];
+  prerequisiteIds?: number[];
+  gradeWeights: GradeWeights;
+}
+
+// Update Course (PUT /api/admin/courses/{id})
+export interface UpdateCourseForm {
+  code?: string;
+  name?: string;
+  description?: string;
+  creditHours?: number;
+  theoryHours?: number;
+  practicalHours?: number;
+  courseType?: number;
+  price?: number;
+  pricePerCreditHour?: number;
+  passingGrade?: number;
+  departmentIds?: number[];
+  prerequisiteIds?: number[];
+  gradeWeights?: GradeWeights;
+}
+
+// ============================================================
+// COURSE INSTANCES (GET /api/admin/course-instances)
+// ============================================================
+
+export interface CourseInstanceListItem {
+  id: number;
+  courseId: number;
+  courseCode: string;
+  courseName: string;
+  semesterId: number;
+  semesterName: string;
+  doctorId: number;
+  doctorName: string;
+  doctorTitle: number;
+  doctorTitleDisplay: string;
+  maxCapacity: number;
+  currentEnrolled: number;
+  enrollmentPercentage: number;
+  status: string; // "Open" | "Full"
+}
+
+export interface CourseInstanceListParams {
+  semesterId?: number;
+  departmentId?: number;
+  doctorId?: number;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// Create Course Instance (POST /api/admin/course-instances)
+export interface CreateCourseInstanceForm {
+  courseId: number;
+  semesterId: number;
+  doctorId: number;
+  maxCapacity: number;
+}
+
+// Update Course Instance (PUT /api/admin/course-instances/{id})
+export interface UpdateCourseInstanceForm {
+  doctorId?: number;
+  maxCapacity?: number;
+}
+
+export interface EnrollmentListItem {
+  enrollmentId: number;
+  studentId: number;
+  studentName: string;
+  studentCode: string;
+  enrollmentDate: string;
+  status: string;
+}
+
+// ============================================================
+// DEPARTMENTS (GET /api/admin/departments)
+// ============================================================
+
+export interface DepartmentListItem {
+  id: number;
+  name: string;
+  code: string;
+  description: string;
+  departmentType: number;
+  departmentTypeDisplay: string;
+  headDoctorId: number | null;
+  headDoctorName: string | null;
+  coursesCount: number;
+  studentsCount: number;
+  doctorsCount: number;
+}
+
+export interface DeptStudent {
+  id: number;
+  name: string;
+  email: string;
+  yearLevel: string;
+}
+
+export interface DeptDoctor {
+  id: number;
+  name: string;
+  email: string;
+  title: string;
+}
+
+export interface DeptCourse {
+  id: number;
+  code: string;
+  name: string;
+  creditHours: number;
+}
+
+export interface DepartmentDetail {
+  id: number;
+  name: string;
+  code: string;
+  description: string;
+  departmentType: number;
+  departmentTypeDisplay: string;
+  headDoctorId: number | null;
+  headDoctorName: string | null;
+  studentsCount: number;
+  doctorsCount: number;
+  coursesCount: number;
+  students: DeptStudent[];
+  doctors: DeptDoctor[];
+  courses: DeptCourse[];
+}
+
+// Create Department (POST /api/admin/departments)
+export interface CreateDepartmentForm {
+  name: string;
+  code: string;
+  description?: string;
+  departmentType: number;
+  headDoctorId?: number | null;
+}
+
+// Update Department (PUT /api/admin/departments/{id})
+export interface UpdateDepartmentForm {
+  name?: string;
+  code?: string;
+  description?: string;
+  departmentType?: number;
+  headDoctorId?: number | null;
+}
+
+// ============================================================
+// USERS (GET /api/admin/users)
+// ============================================================
+
+export interface UserListItem {
+  id: number;
+  fullName: string;
+  email: string;
+  role: string;              // "Student" | "Doctor" | "Advisor"
+  roleDisplay: string;
+  departmentName: string;
+  status: string;            // "Active" | "Inactive"
+  details: StudentDetails | DoctorDetails | AdvisorDetails;
+}
+
+export interface StudentDetails {
+  yearLevel: number;
+  yearLevelDisplay: string;
+  gpa: number;
+}
+
+export interface DoctorDetails {
+  title: number;
+  titleDisplay: string;
+}
+
+export interface AdvisorDetails {
+  adviseesCount: number;
+}
+
+export interface UserListParams {
+  role?: string;
+  departmentId?: number;
+  yearLevel?: number;
+  status?: string;
+  search?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+// Update User Status (PUT /api/admin/users/{id}/status)
+export interface UpdateUserStatusForm {
+  status: string; // "Active" | "Inactive"
+}
+
+// ---- Student List (GET /api/students) — kept for backward compat ----
 
 export interface StudentListItem {
   id: number;
@@ -39,7 +444,7 @@ export interface StudentListParams {
   pageSize?: number;
 }
 
-// ---- Student Detail (GET /api/students/{id}) ----
+// ---- Student Detail ----
 
 export interface StudentCourse {
   courseInstanceId: number;
@@ -164,46 +569,41 @@ export interface StudentDetail {
   paymentHistory: PaymentHistoryEntry[];
 }
 
-// ---- Create Student (POST /api/users/students) ----
-
+// Create Student (POST /api/admin/users/students)
 export interface CreateStudentForm {
+  fullName: string;
   email: string;
-  name: string;
-  phoneNumber: string;
+  phoneNumber?: string;
   nationalId: string;
-  yearLevel: number;
+  gender: number;              // 0=Male, 1=Female
+  dateOfBirth: string;
+  nationality: string;
+  religion: string;
+  address: string;
+  city: string;
+  fatherPhone: string;
+  fatherJob?: string;
+  previousQualification?: string;
   departmentId?: number;
-  academicAdvisorId?: number;
+  advisorId?: number;
+  yearLevel: number;           // 0=Freshman, 1=Sophomore, 2=Junior, 3=Senior
+  password: string;
 }
 
 export interface CreateStudentResponse {
-  studentId: number;
+  id: number;
   studentCode: string;
-  email: string;
-  temporaryPassword: string;
 }
 
-// ---- Update Student (PUT /api/students/{id}) ----
-
+// Update Student (PUT /api/admin/users/{id})
 export interface UpdateStudentForm {
-  firstName?: string;
-  lastName?: string;
+  fullName?: string;
   email?: string;
   phoneNumber?: string;
-  nationalId?: string;
-  yearLevel?: number;
-  semesterNumber?: number;
   departmentId?: number;
-  academicAdvisorId?: number;
-  nationality?: string;
-  gender?: number;
-  religion?: string;
-  dateOfBirth?: string;
-  address?: string;
-  city?: string;
-  fatherPhone?: string;
-  fatherJob?: string;
-  previousQualification?: string;
+  advisorId?: number;
+  yearLevel?: number;
+  status?: string;
 }
 
 export interface UpdateStudentResponse {
@@ -213,7 +613,7 @@ export interface UpdateStudentResponse {
   message: string;
 }
 
-// ---- Doctor List (GET /api/doctors) ----
+// ---- Doctor List ----
 
 export interface DoctorListItem {
   id: number;
@@ -238,8 +638,6 @@ export interface DoctorListParams {
   page?: number;
   pageSize?: number;
 }
-
-// ---- Doctor Detail (GET /api/doctors/{id}) ----
 
 export interface DoctorCourseItem {
   courseInstanceId: number;
@@ -308,36 +706,31 @@ export interface DoctorDetail {
   recentReviews: DoctorReview[];
 }
 
-// ---- Create Doctor (POST /api/users/doctors) ----
-
+// Create Doctor (POST /api/admin/users/doctors)
 export interface CreateDoctorForm {
+  fullName: string;
   email: string;
-  name: string;
-  phoneNumber: string;
-  nationalId: string;
-  title: number;
+  phoneNumber?: string;
+  title: number;               // 0=Professor … 4=TeachingAssistant
   departmentId: number;
   officeRoomId?: number;
+  password: string;
 }
 
 export interface CreateDoctorResponse {
-  doctorId: number;
-  doctorCode: string;
-  email: string;
-  temporaryPassword: string;
+  id: number;
+  doctorCode?: string;
 }
 
-// ---- Update Doctor (PUT /api/doctors/{id}) ----
-
+// Update Doctor (PUT /api/admin/users/{id})
 export interface UpdateDoctorForm {
-  firstName?: string;
-  lastName?: string;
+  fullName?: string;
   email?: string;
   phoneNumber?: string;
-  nationalId?: string;
   title?: number;
   departmentId?: number;
   officeRoomId?: number;
+  status?: string;
 }
 
 export interface UpdateDoctorResponse {
@@ -347,7 +740,7 @@ export interface UpdateDoctorResponse {
   message: string;
 }
 
-// ---- Advisor List (GET /api/admin/users/advisors) ----
+// ---- Advisor List ----
 
 export interface AdvisorListItem {
   id: number;
@@ -365,8 +758,6 @@ export interface AdvisorListParams {
   pageSize?: number;
 }
 
-// ---- Advisor Detail (GET /api/admin/users/advisors/{id}) ----
-
 export interface AdvisorDetail {
   id: number;
   advisorCode: string;
@@ -379,214 +770,65 @@ export interface AdvisorDetail {
   assignedStudentsCount: number;
 }
 
-// ---- Create Advisor (POST /api/users/advisors) ----
-
+// Create Advisor (POST /api/admin/users/advisors)
 export interface CreateAdvisorForm {
+  fullName: string;
   email: string;
-  name: string;
-  phoneNumber: string;
-  nationalId: string;
+  phoneNumber?: string;
   officeRoomId?: number;
+  password: string;
 }
 
 export interface CreateAdvisorResponse {
-  advisorId: number;
-  advisorCode: string;
-  email: string;
-  temporaryPassword: string;
+  id: number;
+  advisorCode?: string;
 }
 
-// ---- Update Advisor (PUT /api/admin/users/advisors/{id}) ----
-
+// Update Advisor (PUT /api/admin/users/{id})
 export interface UpdateAdvisorForm {
-  advisorId: number;
-  name: string;
-  phoneNumber: string;
+  fullName?: string;
+  email?: string;
+  phoneNumber?: string;
   officeRoomId?: number | null;
+  status?: string;
 }
 
-// ---- Dropdown Data Sources ----
+// ============================================================
+// ROOMS (GET /api/admin/rooms)
+// ============================================================
 
-// ---- Department List (GET /api/admin/departments) ----
-
-export interface DepartmentListItem {
-  id: number;
-  departmentType: number;
-  code: string;
-  description: string;
-  studentsCount: number;
-  doctorsCount: number;
-  coursesCount: number;
-  headOfDepartmentId: number | null;
-  headOfDepartmentName: string | null;
-}
-
-// ---- Department Detail (GET /api/admin/departments/{id}) ----
-
-export interface DeptStudent {
+export interface RoomListItem {
   id: number;
   name: string;
-  email: string;
-  yearLevel: string;
+  roomType: number;            // 0=LectureHall, 1=Lab, 2=Office
+  roomTypeDisplay: string;
+  building: string;
+  floor: number;
+  capacity: number;
+  isActive: boolean;
 }
 
-export interface DeptDoctor {
-  id: number;
+// Create Room (POST /api/admin/rooms)
+export interface CreateRoomForm {
   name: string;
-  email: string;
-  title: string;
+  roomType: number;
+  building: string;
+  floor?: number;
+  capacity: number;
 }
 
-export interface DeptCourse {
-  id: number;
-  code: string;
-  name: string;
-  creditHours: number;
-}
-
-export interface DepartmentDetail {
-  id: number;
-  departmentType: string;
-  code: string;
-  description: string;
-  headOfDepartmentId: number | null;
-  headOfDepartmentName: string | null;
-  studentsCount: number;
-  doctorsCount: number;
-  coursesCount: number;
-  students: DeptStudent[];
-  doctors: DeptDoctor[];
-  courses: DeptCourse[];
-}
-
-// ---- Create Department (POST /api/admin/departments) ----
-
-export interface CreateDepartmentForm {
-  departmentType: number;
-  code: string;
-  description?: string;
-}
-
-// ---- Update Department (PUT /api/admin/departments/{id}) ----
-
-export interface UpdateDepartmentForm {
-  code?: string;
-  description?: string;
-}
-
-// ---- Dropdown Data Sources ----
-
-export interface DepartmentOption {
-  id: number;
-  description: string;
-}
-
-export interface AdvisorOption {
-  id: number;
-  fullName: string;
-}
-
-export interface RoomOption {
-  id: number;
-  name: string;
-}
-
-// ---- Course List (GET /api/admin/courses) ----
-
-export interface CourseListItem {
-  id: number;
-  name: string;
-  code: string;
-  description: string;
-  creditHours: number;
-  theoryHours: number;
-  practicalHours: number;
-  courseType: number;
-  passingGrade: number;
-  prerequisitesCount: number;
-  departmentsCount: number;
-  instancesCount: number;
-}
-
-// ---- Course Detail (GET /api/admin/courses/{id}) ----
-
-export interface CoursePrerequisite {
-  id: number;
-  courseCode: string;
-  courseName: string;
-}
-
-export interface CourseDepartment {
-  id: number;
-  departmentType: string;
-  code: string;
-}
-
-export interface CourseInstance {
-  id: number;
-  semesterName: string;
-  doctorName: string;
-  maxCapacity: number;
-  currentEnrolled: number;
-  isFull: boolean;
-}
-
-export interface CourseDetail {
-  id: number;
-  name: string;
-  code: string;
-  description: string;
-  creditHours: number;
-  theoryHours: number;
-  practicalHours: number;
-  price: number;
-  pricePerCreditHour: number;
-  courseType: number;
-  passingGrade: number;
-  prerequisites: CoursePrerequisite[];
-  departments: CourseDepartment[];
-  instances: CourseInstance[];
-}
-
-// ---- Create Course (POST /api/admin/courses) ----
-
-export interface CreateCourseForm {
-  name: string;
-  code: string;
-  description?: string;
-  creditHours: number;
-  theoryHours: number;
-  practicalHours: number;
-  price?: number;
-  pricePerCreditHour?: number;
-  courseType: number;
-  passingGrade: number;
-}
-
-// ---- Update Course (PUT /api/admin/courses/{id}) ----
-
-export interface UpdateCourseForm {
+// Update Room (PUT /api/admin/rooms/{id})
+export interface UpdateRoomForm {
   name?: string;
-  code?: string;
-  description?: string;
-  creditHours?: number;
-  theoryHours?: number;
-  practicalHours?: number;
-  price?: number;
-  pricePerCreditHour?: number;
-  courseType?: number;
-  passingGrade?: number;
+  roomType?: number;
+  building?: string;
+  floor?: number;
+  capacity?: number;
 }
 
-// ---- Course Instance (POST /api/admin/courses/{id}/instances) ----
-
-export interface CreateCourseInstanceForm {
-  semesterId: number;
-  doctorId: number;
-  maxCapacity: number;
-}
-
-// ---- Course Schedule (GET /api/schedules) ----
+// ============================================================
+// COURSE SCHEDULES (GET /api/schedules)
+// ============================================================
 
 export interface CourseScheduleItem {
   scheduleId: number;
@@ -595,20 +837,23 @@ export interface CourseScheduleItem {
   courseName: string;
   creditHours: number;
   day: number;
+  dayDisplay: string;
   startTime: string;
   endTime: string;
-  type: number;
-  typeDisplay: string;
+  scheduleType: number;
+  scheduleTypeDisplay: string;
   roomId: number | null;
   roomName: string | null;
   roomBuilding: string | null;
   doctorId: number;
   doctorName: string;
   doctorTitle: number;
+  doctorTitleDisplay: string;
   departmentId: number;
   departmentName: string;
   enrolledCount: number;
   maxCapacity: number;
+  // UI grid helpers
   gridRow: number;
   gridColumn: number;
   durationInHours: number;
@@ -622,14 +867,12 @@ export interface CourseScheduleFilterParams {
   day?: number;
 }
 
-// ---- Create Course Schedule (POST /api/schedules) ----
-
 export interface CreateCourseScheduleForm {
   courseInstanceId: number;
   day: number;
   startTime: string;
   endTime: string;
-  type: number;
+  scheduleType: number;
   roomId?: number | null;
 }
 
@@ -640,19 +883,17 @@ export interface CreateCourseScheduleResponse {
   day: number;
   startTime: string;
   endTime: string;
-  type: string;
+  scheduleType: string;
   roomName: string | null;
   hasConflict: boolean;
   conflictMessage: string | null;
 }
 
-// ---- Update Course Schedule (PUT /api/schedules/{id}) ----
-
 export interface UpdateCourseScheduleForm {
   day?: number;
   startTime?: string;
   endTime?: string;
-  type?: number;
+  scheduleType?: number;
   roomId?: number | null;
 }
 
@@ -663,12 +904,14 @@ export interface UpdateCourseScheduleResponse {
   day: number;
   startTime: string;
   endTime: string;
-  type: string;
+  scheduleType: string;
   roomName: string | null;
   message: string;
 }
 
-// ---- Exam Schedule (GET /api/exam-schedules) ----
+// ============================================================
+// EXAM SCHEDULES (GET /api/exam-schedules)
+// ============================================================
 
 export interface ExamScheduleItem {
   examScheduleId: number;
@@ -709,8 +952,6 @@ export interface ExamScheduleFilterParams {
   pageSize?: number;
 }
 
-// ---- Create Exam Schedule (POST /api/exam-schedules) ----
-
 export interface CreateExamScheduleForm {
   courseInstanceId: number;
   examType: number;
@@ -737,8 +978,6 @@ export interface CreateExamScheduleResponse {
   message: string;
 }
 
-// ---- Update Exam Schedule (PUT /api/exam-schedules/{id}) ----
-
 export interface UpdateExamScheduleForm {
   examDate?: string;
   startTime?: string;
@@ -759,7 +998,9 @@ export interface UpdateExamScheduleResponse {
   message: string;
 }
 
-// ---- Dropdown Options for Schedules ----
+// ============================================================
+// DROPDOWN OPTIONS
+// ============================================================
 
 export interface SemesterOption {
   id: number;
@@ -771,117 +1012,23 @@ export interface DoctorOption {
   fullName: string;
 }
 
-// ---- Legacy Aliases ----
-
-/** @deprecated Use DepartmentListItem instead */
-export interface AdminDepartment {
-  departmentId: number;
+export interface DepartmentOption {
+  id: number;
   name: string;
+}
+
+export interface AdvisorOption {
+  id: number;
+  fullName: string;
+}
+
+export interface RoomOption {
+  id: number;
+  name: string;
+}
+
+export interface CourseOption {
+  id: number;
   code: string;
-  type: number;
-  headName?: string;
-  totalDoctors: number;
-  totalStudents: number;
-  totalCourses: number;
-}
-
-/** @deprecated Use CreateDepartmentForm instead */
-export interface DepartmentForm {
   name: string;
-  code: string;
-  type: number;
-  headDoctorId?: number;
-}
-
-/** @deprecated Use CourseListItem instead */
-export interface AdminCourse {
-  courseId: string;
-  courseCode: string;
-  courseName: string;
-  description?: string;
-  credits: number;
-  courseType: number;
-  departmentId: number;
-  departmentName: string;
-  totalStudents: number;
-  totalDoctors: number;
-}
-
-/** @deprecated Use CreateCourseForm instead */
-export interface CourseForm {
-  courseCode: string;
-  courseName: string;
-  description?: string;
-  credits: number;
-  courseType: number;
-  departmentId: number;
-}
-
-// ---- Legacy Aliases (keep for doctors/advisors pages) ----
-
-/** @deprecated Use StudentListItem instead */
-export interface AdminStudent {
-  studentId: string;
-  studentCode: string;
-  name: string;
-  email: string;
-  phoneNumber?: string;
-  address?: string;
-  gender: number;
-  dateOfBirth?: string;
-  departmentId: number;
-  departmentName: string;
-  yearLevel: number;
-  gpa: number;
-  creditHours: number;
-  status: number;
-}
-
-/** @deprecated Use role-specific form types instead */
-export interface AdminUserForm {
-  name: string;
-  email: string;
-  phoneNumber: string;
-  address?: string;
-  gender: number;
-  dateOfBirth?: string;
-  departmentId: number;
-  yearLevel?: number;
-  title?: number;
-  specialization?: string;
-  officeRoom?: string;
-  officeHours?: string;
-}
-
-// Doctor and Advisor types (kept for their respective pages)
-export interface AdminDoctor {
-  doctorId: string;
-  doctorCode: string;
-  name: string;
-  email: string;
-  phoneNumber?: string;
-  gender: number;
-  departmentId: number;
-  departmentName: string;
-  title: number;
-  specialization?: string;
-  officeRoom?: string;
-  officeHours?: string;
-  courseCount: number;
-  status: number;
-}
-
-export interface AdminAdvisor {
-  advisorId: string;
-  advisorCode: string;
-  name: string;
-  email: string;
-  phoneNumber?: string;
-  gender: number;
-  departmentId: number;
-  departmentName: string;
-  studentCount: number;
-  officeRoom?: string;
-  officeHours?: string;
-  status: number;
 }

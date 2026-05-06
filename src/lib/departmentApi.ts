@@ -53,12 +53,13 @@ export async function fetchDepartmentDetail(
 ): Promise<{ data: DepartmentDetail | null; error?: string }> {
   try {
     const res = await api.get<unknown>(`/api/admin/departments/${id}`);
-    const raw = res.data as DepartmentDetail & ApiResponse<DepartmentDetail>;
-    // Direct shape
-    if (raw && typeof raw === 'object' && 'students' in raw) return { data: raw as DepartmentDetail };
-    // ApiResponse wrapper
-    if (raw && 'isSuccess' in raw && raw.isSuccess && raw.data) return { data: raw.data as unknown as DepartmentDetail };
-    return { data: null, error: getErrorMessage(res) };
+    // Cast to unknown first to prevent TypeScript from narrowing to 'never'
+    const raw = res.data as unknown as Record<string, unknown>;
+    // ApiResponse wrapper shape
+    if (raw && raw['isSuccess'] && raw['data']) return { data: raw['data'] as DepartmentDetail };
+    // Direct response shape
+    if (raw && typeof raw === 'object' && 'students' in raw) return { data: raw as unknown as DepartmentDetail };
+    return { data: null, error: String(raw?.['error'] ?? 'Failed to fetch department details') };
   } catch {
     return { data: null, error: 'Failed to fetch department details' };
   }
@@ -112,7 +113,7 @@ export async function setDepartmentHead(
   doctorId: number | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await api.put<unknown>(`/api/admin/departments/${departmentId}/head`, { doctorId });
+    const res = await api.put<unknown>(`/api/admin/departments/${departmentId}/set-head`, { doctorId });
     const raw = res.data as { success?: boolean } & ApiResponse<boolean>;
     if (raw?.success) return { success: true };
     if (raw && 'isSuccess' in raw && raw.isSuccess) return { success: true };

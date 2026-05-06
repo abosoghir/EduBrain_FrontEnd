@@ -1,196 +1,229 @@
-import React, { useEffect, useState, useCallback, useMemo } from 'react';
-import { api } from '@/lib/api';
-import type { ApiResponse } from '@/lib/api';
-import type { DoctorAttendanceSession, DoctorAttendanceStudent, RecordAttendanceRequest } from '@/types/doctor';
+import React, { useState, useCallback, useMemo } from 'react';
+import { fetchDoctorCourses, fetchAttendanceSession, submitAttendance } from '@/lib/doctorPortalApi';
+import type { DoctorCourse, DoctorAttendanceStudent, RecordAttendanceRequest } from '@/types/doctor';
 
-import { ATTENDANCE_STATUS_LABELS, SCHEDULE_TYPE_LABELS } from '@/lib/enums';
+function todayISO(): string {
+  return new Date().toISOString().split('T')[0];
+}
+
+function getWeekNumber(dateStr: string): number {
+  // Simple heuristic — week from Jan 1 of that year
+  const d = new Date(dateStr);
+  const start = new Date(d.getFullYear(), 0, 1);
+  return Math.ceil(((d.getTime() - start.getTime()) / 86400000 + start.getDay() + 1) / 7);
+}
+
+const STATUS_STYLE: Record<number, string> = {
+  0: 'bg-emerald-100 text-emerald-600 ring-2 ring-emerald-200',
+  1: 'bg-red-100 text-red-600 ring-2 ring-red-200',
+  2: 'bg-amber-100 text-amber-600 ring-2 ring-amber-200',
+};
+const STATUS_IDLE = 'bg-gray-50 text-gray-300 hover:bg-gray-100';
 
 export default function DoctorAttendance() {
-  const [sessions, setSessions] = useState<DoctorAttendanceSession[]>([]);
-  const [selectedSession, setSelectedSession] = useState<DoctorAttendanceSession | null>(null);
+  const [courses, setCourses] = useState<DoctorCourse[]>([]);
+  const [coursesLoaded, setCoursesLoaded] = useState(false);
+
+  const [selectedCourseId, setSelectedCourseId] = useState<number | ''>('');
+  const [selectedDate, setSelectedDate] = useState<string>(todayISO());
+
   const [students, setStudents] = useState<DoctorAttendanceStudent[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [isAttendanceTaken, setIsAttendanceTaken] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(false);
+  const [sessionLoaded, setSessionLoaded] = useState(false);
+
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
-  const [filterStatus, setFilterStatus] = useState<string>('all');
 
-  useEffect(() => {
-    api.get<ApiResponse<DoctorAttendanceSession[]>>('/api/doctor/attendance/sessions')
-      .then((res) => {
-        if (res.data.isSuccess && res.data.hasData && res.data.data) {
-          setSessions(res.data.data);
-        } else {
-          setSessions([]);
-        }
-      })
-      .catch(() => {
-        setSessions([]);
-      })
-      .finally(() => setLoading(false));
-  }, []);
+  // Load courses on first render
+  useState(() => {
+    fetchDoctorCourses().then(({ data }) => {
+      setCourses(data?.courses ?? []);
+      setCoursesLoaded(true);
+    });
+  });
 
-  const handleOpenSession = useCallback((session: DoctorAttendanceSession) => {
-    setSelectedSession(session);
+  const loadSession = useCallback(async () => {
+    if (!selectedCourseId || !selectedDate) return;
+    setSessionLoading(true);
+    setSessionLoaded(false);
     setMessage(null);
-    api.get<ApiResponse<DoctorAttendanceStudent[]>>(`/api/doctor/attendance/sessions/${session.sessionId}/students`)
-      .then((res) => {
-        if (res.data.isSuccess && res.data.hasData && res.data.data) {
-          setStudents(res.data.data);
-        } else {
-          setStudents([]);
-        }
-      })
-      .catch(() => {
-        setStudents([]);
-      });
+    const { data, error } = await fetchAttendanceSession(Number(selectedCourseId), selectedDate);
+    if (data) {
+      setStudents(data.students.map((s) => ({ ...s })));
+      setIsAttendanceTaken(data.isAttendanceTaken);
+    } else {
+      setStudents([]);
+      setMessage({ type: 'error', text: error ?? 'Failed to load session.' });
+    }
+    setSessionLoading(false);
+    setSessionLoaded(true);
+  }, [selectedCourseId, selectedDate]);
+
+  const updateStatus = useCallback((studentId: number, status: number) => {
+    setStudents((prev) => prev.map((s) => (s.studentId === studentId ? { ...s, status } : s)));
   }, []);
 
-  const handleCloseSession = useCallback(() => {
-    setSelectedSession(null);
-    setStudents([]);
-    setMessage(null);
+  const markAll = useCallback((status: number) => {
+    setStudents((prev) => prev.map((s) => ({ ...s, status })));
   }, []);
 
-  const updateStudentStatus = useCallback((studentId: string, status: number) => {
-    setStudents((prev) =>
-      prev.map((s) => (s.studentId === studentId ? { ...s, status } : s))
-    );
-  }, []);
-
-  const handleSaveAttendance = useCallback(async () => {
-    if (!selectedSession) return;
+  const handleSave = useCallback(async () => {
+    if (!selectedCourseId || !selectedDate) return;
     setSaving(true);
     setMessage(null);
     const payload: RecordAttendanceRequest = {
-      sessionId: selectedSession.sessionId,
-      attendanceRecords: students.map((s) => ({ studentId: s.studentId, status: s.status })),
+      courseInstanceId: Number(selectedCourseId),
+      date: selectedDate,
+      weekNumber: getWeekNumber(selectedDate),
+      students: students.map((s) => ({ studentId: s.studentId, status: s.status })),
     };
-    try {
-      const res = await api.post<ApiResponse<null>>('/api/doctor/attendance', payload);
-      if (res.data.isSuccess) {
-        setMessage({ type: 'success', text: 'Attendance recorded successfully.' });
-        setSessions((prev) =>
-          prev.map((s) =>
-            s.sessionId === selectedSession.sessionId
-              ? { ...s, recordedCount: students.length, status: 1 }
-              : s
-          )
-        );
-      } else {
-        setMessage({ type: 'error', text: res.data.error?.description || 'Failed to save attendance.' });
-      }
-    } catch {
-      setMessage({ type: 'error', text: 'Network error. Please try again.' });
-    } finally {
-      setSaving(false);
+    const { success, message: msg, error } = await submitAttendance(payload);
+    if (success) {
+      setIsAttendanceTaken(true);
+      setMessage({ type: 'success', text: msg ?? 'Attendance saved successfully!' });
+    } else {
+      setMessage({ type: 'error', text: error ?? 'Failed to save attendance.' });
     }
-  }, [selectedSession, students]);
-
-  const filteredSessions = useMemo(() => {
-    if (filterStatus === 'all') return sessions;
-    return sessions.filter((s) => (filterStatus === 'open' ? s.status === 0 : s.status === 1));
-  }, [sessions, filterStatus]);
-
-  const statusBadge = useCallback((status: number) => {
-    const map: Record<number, string> = {
-      0: 'bg-emerald-50 text-emerald-600',
-      1: 'bg-red-50 text-red-600',
-      2: 'bg-amber-50 text-amber-600',
-    };
-    return map[status] || 'bg-gray-50 text-gray-600';
-  }, []);
+    setSaving(false);
+  }, [selectedCourseId, selectedDate, students]);
 
   const quickStats = useMemo(() => {
     if (!students.length) return null;
-    const present = students.filter((s) => s.status === 0).length;
-    const absent = students.filter((s) => s.status === 1).length;
-    const late = students.filter((s) => s.status === 2).length;
-    return { present, absent, late, total: students.length };
+    return {
+      present: students.filter((s) => s.status === 0).length,
+      absent: students.filter((s) => s.status === 1).length,
+      late: students.filter((s) => s.status === 2).length,
+      total: students.length,
+    };
   }, [students]);
+
+  const isPastDate = selectedDate < todayISO();
+  const selectedCourse = courses.find((c) => c.courseInstanceId === Number(selectedCourseId));
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-slate-800 mb-6">Attendance Recording</h1>
+      <h1 className="text-xl font-bold text-slate-800 mb-6">Take Attendance</h1>
 
-      {loading && (
-        <div className="flex items-center gap-2 text-slate-400 text-sm mb-6">
-          <i className="ri-loader-4-line animate-spin" />
-          Loading sessions...
+      {/* Filters */}
+      <div className="bg-white rounded-xl border border-gray-100 p-5 mb-6">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 items-end">
+          <div>
+            <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1.5">Course *</label>
+            <select
+              value={selectedCourseId}
+              onChange={(e) => { setSelectedCourseId(e.target.value ? Number(e.target.value) : ''); setSessionLoaded(false); setStudents([]); }}
+              className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-200"
+            >
+              <option value="">
+                {coursesLoaded ? 'Select a course...' : 'Loading courses...'}
+              </option>
+              {courses.map((c) => (
+                <option key={c.courseInstanceId} value={c.courseInstanceId}>
+                  {c.courseCode} — {c.courseName}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1.5">Date *</label>
+            <input
+              type="date"
+              value={selectedDate}
+              max={todayISO()}
+              onChange={(e) => { setSelectedDate(e.target.value); setSessionLoaded(false); setStudents([]); }}
+              className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-200"
+            />
+          </div>
+          <button
+            type="button"
+            onClick={loadSession}
+            disabled={!selectedCourseId || !selectedDate || sessionLoading}
+            className="flex items-center justify-center gap-1.5 px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors disabled:opacity-50"
+          >
+            {sessionLoading ? <i className="ri-loader-4-line animate-spin" /> : <i className="ri-search-line" />}
+            Load Session
+          </button>
+        </div>
+      </div>
+
+      {/* Session info + warnings */}
+      {sessionLoaded && selectedCourse && (
+        <div className="mb-4 space-y-2">
+          <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 text-xs text-slate-600">
+            <i className="ri-information-line text-violet-500" />
+            <span className="font-medium">{selectedCourse.courseName}</span>
+            <span className="text-slate-400">·</span>
+            <span>{new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            {isAttendanceTaken && (
+              <span className="ml-auto px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-medium text-[10px]">
+                ✅ Attendance Taken
+              </span>
+            )}
+            {!isAttendanceTaken && (
+              <span className="ml-auto px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 font-medium text-[10px]">
+                ⏳ Not Taken Yet
+              </span>
+            )}
+          </div>
+          {isPastDate && (
+            <div className="flex items-center gap-2 p-3 bg-amber-50 rounded-xl border border-amber-100 text-xs text-amber-700">
+              <i className="ri-error-warning-line" />
+              You are recording attendance for a past date.
+            </div>
+          )}
         </div>
       )}
 
-      {/* Session Recording Panel */}
-      {selectedSession && (
-        <div className="bg-white rounded-xl border border-gray-100 p-5 mb-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-sm font-semibold text-slate-700">
-                {selectedSession.courseName} · {selectedSession.courseCode}
-              </h2>
-              <p className="text-[10px] text-slate-400 mt-0.5">
-                {new Date(selectedSession.date).toLocaleDateString()} · {selectedSession.startTime} · {SCHEDULE_TYPE_LABELS[selectedSession.scheduleType as 0 | 1 | 2]}
-              </p>
-            </div>
+      {/* Message */}
+      {message && (
+        <div className={`mb-4 p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'
+          }`}>
+          {message.text}
+        </div>
+      )}
+
+      {/* Attendance table */}
+      {sessionLoaded && students.length > 0 && (
+        <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
+          {/* Toolbar */}
+          <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
             <div className="flex items-center gap-2">
-              {message && (
-                <span className={`text-xs px-2 py-1 rounded-md ${
-                  message.type === 'success' ? 'bg-emerald-50 text-emerald-600' : 'bg-red-50 text-red-600'
-                }`}>
-                  {message.text}
-                </span>
+              {quickStats && (
+                <>
+                  <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 text-[10px] font-medium">{quickStats.present} Present</span>
+                  <span className="px-2 py-0.5 rounded-full bg-red-50 text-red-600 text-[10px] font-medium">{quickStats.absent} Absent</span>
+                  {quickStats.late > 0 && <span className="px-2 py-0.5 rounded-full bg-amber-50 text-amber-600 text-[10px] font-medium">{quickStats.late} Late</span>}
+                </>
               )}
-              <button
-                type="button"
-                onClick={handleSaveAttendance}
-                disabled={saving}
-                className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors disabled:opacity-60"
-              >
-                {saving ? <i className="ri-loader-4-line animate-spin" /> : <i className="ri-save-line" />}
-                Save Attendance
+            </div>
+            <div className="flex gap-2">
+              <button type="button" onClick={() => markAll(0)} className="px-3 py-1 rounded-md bg-emerald-50 text-emerald-600 text-[10px] font-medium hover:bg-emerald-100 transition-colors">
+                Mark All Present
               </button>
-              <button
-                type="button"
-                onClick={handleCloseSession}
-                className="w-8 h-8 rounded-lg bg-gray-50 hover:bg-gray-100 flex items-center justify-center"
-              >
-                <i className="ri-close-line text-slate-500" />
+              <button type="button" onClick={() => markAll(1)} className="px-3 py-1 rounded-md bg-red-50 text-red-600 text-[10px] font-medium hover:bg-red-100 transition-colors">
+                Mark All Absent
               </button>
             </div>
           </div>
 
-          {/* Quick stats */}
-          {quickStats && (
-            <div className="grid grid-cols-3 gap-3 mb-4">
-              <div className="bg-emerald-50 rounded-lg p-3 text-center">
-                <p className="text-lg font-bold text-emerald-600">{quickStats.present}</p>
-                <p className="text-[10px] text-emerald-500">Present</p>
-              </div>
-              <div className="bg-red-50 rounded-lg p-3 text-center">
-                <p className="text-lg font-bold text-red-600">{quickStats.absent}</p>
-                <p className="text-[10px] text-red-500">Absent</p>
-              </div>
-              <div className="bg-amber-50 rounded-lg p-3 text-center">
-                <p className="text-lg font-bold text-amber-600">{quickStats.late}</p>
-                <p className="text-[10px] text-amber-500">Late</p>
-              </div>
-            </div>
-          )}
-
-          {/* Student list */}
+          {/* Student rows */}
           <div className="overflow-x-auto">
             <table className="w-full">
               <thead>
                 <tr className="bg-gray-50">
-                  <th className="text-left px-4 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Student</th>
-                  <th className="text-center px-4 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Present</th>
-                  <th className="text-center px-4 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Absent</th>
-                  <th className="text-center px-4 py-2 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Late</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">#</th>
+                  <th className="text-left px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Student</th>
+                  <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Present</th>
+                  <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Absent</th>
+                  <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Late</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {students.map((s) => (
+                {students.map((s, idx) => (
                   <tr key={s.studentId} className="hover:bg-gray-50/50 transition-colors">
-                    <td className="px-4 py-3">
+                    <td className="px-5 py-3 text-xs text-slate-400">{idx + 1}</td>
+                    <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
                         <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-[10px] font-bold text-violet-600">
                           {s.studentName.charAt(0)}
@@ -201,122 +234,45 @@ export default function DoctorAttendance() {
                         </div>
                       </div>
                     </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => updateStudentStatus(s.studentId, 0)}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                          s.status === 0 ? 'bg-emerald-100 text-emerald-600 ring-2 ring-emerald-200' : 'bg-gray-50 text-gray-300 hover:bg-gray-100'
-                        }`}
-                      >
-                        <i className="ri-check-line" />
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => updateStudentStatus(s.studentId, 1)}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                          s.status === 1 ? 'bg-red-100 text-red-600 ring-2 ring-red-200' : 'bg-gray-50 text-gray-300 hover:bg-gray-100'
-                        }`}
-                      >
-                        <i className="ri-close-line" />
-                      </button>
-                    </td>
-                    <td className="px-4 py-3 text-center">
-                      <button
-                        type="button"
-                        onClick={() => updateStudentStatus(s.studentId, 2)}
-                        className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
-                          s.status === 2 ? 'bg-amber-100 text-amber-600 ring-2 ring-amber-200' : 'bg-gray-50 text-gray-300 hover:bg-gray-100'
-                        }`}
-                      >
-                        <i className="ri-time-line" />
-                      </button>
-                    </td>
+                    {([0, 1, 2] as const).map((status) => (
+                      <td key={status} className="px-5 py-3 text-center">
+                        <button
+                          type="button"
+                          onClick={() => updateStatus(s.studentId, status)}
+                          className={`w-8 h-8 rounded-full flex items-center justify-center mx-auto transition-all ${s.status === status ? STATUS_STYLE[status] : STATUS_IDLE
+                            }`}
+                        >
+                          <i className={status === 0 ? 'ri-check-line' : status === 1 ? 'ri-close-line' : 'ri-time-line'} />
+                        </button>
+                      </td>
+                    ))}
                   </tr>
                 ))}
               </tbody>
             </table>
           </div>
+
+          {/* Save bar */}
+          <div className="px-5 py-3 border-t border-gray-100 flex justify-end">
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="flex items-center gap-1.5 px-4 py-2 rounded-lg bg-violet-600 hover:bg-violet-700 text-white text-xs font-medium transition-colors disabled:opacity-60"
+            >
+              {saving ? <i className="ri-loader-4-line animate-spin" /> : <i className="ri-save-line" />}
+              Save Attendance
+            </button>
+          </div>
         </div>
       )}
 
-      {/* Sessions List */}
-      <div className="bg-white rounded-xl border border-gray-100 overflow-hidden">
-        <div className="px-5 py-3 border-b border-gray-100 flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-700">Attendance Sessions</h2>
-          <div className="flex gap-1">
-            {['all', 'open', 'closed'].map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() => setFilterStatus(f)}
-                className={`px-3 py-1 rounded-md text-[10px] font-medium capitalize transition-colors ${
-                  filterStatus === f ? 'bg-violet-600 text-white' : 'bg-gray-50 text-slate-500 hover:bg-gray-100'
-                }`}
-              >
-                {f}
-              </button>
-            ))}
+      {sessionLoaded && students.length === 0 && (
+        <div className="text-center py-12 bg-white rounded-xl border border-gray-100">
+          <div className="w-12 h-12 rounded-xl bg-slate-100 flex items-center justify-center mx-auto mb-3">
+            <i className="ri-group-line text-xl text-slate-400" />
           </div>
-        </div>
-        <div className="overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="bg-gray-50">
-                <th className="text-left px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Course</th>
-                <th className="text-left px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Date & Time</th>
-                <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Type</th>
-                <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Recorded</th>
-                <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Status</th>
-                <th className="text-center px-5 py-3 text-[10px] font-semibold text-slate-500 uppercase tracking-wider">Action</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-100">
-              {filteredSessions.map((s) => (
-                <tr key={s.sessionId} className="hover:bg-gray-50/50 transition-colors">
-                  <td className="px-5 py-3">
-                    <p className="text-sm font-medium text-slate-700">{s.courseName}</p>
-                    <p className="text-[10px] text-slate-400">{s.courseCode}</p>
-                  </td>
-                  <td className="px-5 py-3 text-xs text-slate-600">
-                    {new Date(s.date).toLocaleDateString()} · {s.startTime}
-                  </td>
-                  <td className="px-5 py-3 text-center">
-                    <span className="text-[10px] text-slate-400">{SCHEDULE_TYPE_LABELS[s.scheduleType as 0 | 1 | 2]}</span>
-                  </td>
-                  <td className="px-5 py-3 text-center">
-                    <span className="text-xs text-slate-600">
-                      {s.recordedCount}/{s.totalStudents}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-center">
-                    <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${
-                      s.status === 0 ? 'bg-emerald-50 text-emerald-600' : 'bg-slate-100 text-slate-500'
-                    }`}>
-                      {s.status === 0 ? 'Open' : 'Closed'}
-                    </span>
-                  </td>
-                  <td className="px-5 py-3 text-center">
-                    <button
-                      type="button"
-                      onClick={() => handleOpenSession(s)}
-                      className="text-xs text-violet-600 hover:text-violet-700 font-medium"
-                    >
-                      {s.status === 0 ? 'Record' : 'View'}
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      {!loading && filteredSessions.length === 0 && (
-        <div className="text-center py-8">
-          <p className="text-sm text-slate-400">No attendance sessions found.</p>
+          <p className="text-sm text-slate-400">No enrolled students found for this session.</p>
         </div>
       )}
     </div>

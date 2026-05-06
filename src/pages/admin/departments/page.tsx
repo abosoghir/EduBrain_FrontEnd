@@ -31,9 +31,9 @@ export default function AdminDepartments() {
   const [toast, setToast] = useState<string | null>(null);
 
   // Create form
-  const [createForm, setCreateForm] = useState<CreateDepartmentForm>({ departmentType: 1, code: '', description: '' });
+  const [createForm, setCreateForm] = useState<CreateDepartmentForm>({ name: '', departmentType: 1, code: '', description: '' });
   // Edit form
-  const [editForm, setEditForm] = useState<UpdateDepartmentForm>({ code: '', description: '' });
+  const [editForm, setEditForm] = useState<UpdateDepartmentForm>({ name: '', code: '', description: '' });
   // Set head
   const [headModal, setHeadModal] = useState<DepartmentListItem | null>(null);
   const [headDoctorId, setHeadDoctorId] = useState('');
@@ -56,13 +56,13 @@ export default function AdminDepartments() {
     setSubmitting(true);
     const res = await createDepartment(createForm);
     setSubmitting(false);
-    if (res.id !== null) { setToast('Department created'); setShowCreate(false); setCreateForm({ departmentType: 1, code: '', description: '' }); loadData(); }
+    if (res.id !== null) { setToast('Department created'); setShowCreate(false); setCreateForm({ name: '', departmentType: 1, code: '', description: '' }); loadData(); }
     else setToast(res.error || 'Create failed');
   };
 
   const handleOpenEdit = (dept: DepartmentListItem) => {
     setEditDept(dept);
-    setEditForm({ code: dept.code, description: dept.description });
+    setEditForm({ name: dept.name, code: dept.code, description: dept.description });
   };
 
   const handleUpdate = async (e: React.FormEvent) => {
@@ -156,13 +156,13 @@ export default function AdminDepartments() {
                     <div className="flex items-center gap-2">
                       <div className="w-8 h-8 rounded-lg bg-slate-100 flex items-center justify-center text-[10px] font-bold text-slate-600">{d.code}</div>
                       <div>
-                        <p className="text-sm font-medium text-slate-700">{d.description}</p>
-                        <p className="text-[10px] text-slate-400">{DEPARTMENT_TYPE_LABELS[d.departmentType as 0|1|2|3|4|5]}</p>
+                        <p className="text-sm font-medium text-slate-700">{d.name}</p>
+                        <p className="text-[10px] text-slate-400">{d.departmentTypeDisplay || DEPARTMENT_TYPE_LABELS[d.departmentType as 0 | 1 | 2 | 3 | 4 | 5]}</p>
                       </div>
                     </div>
                   </td>
                   <td className="px-5 py-3 text-center text-xs font-medium text-slate-600">{d.code}</td>
-                  <td className="px-5 py-3 text-center text-xs text-slate-600">{d.headOfDepartmentName || <span className="text-slate-300">—</span>}</td>
+                  <td className="px-5 py-3 text-center text-xs text-slate-600">{d.headDoctorName || <span className="text-slate-300">—</span>}</td>
                   <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{d.doctorsCount}</td>
                   <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{d.studentsCount}</td>
                   <td className="px-5 py-3 text-center text-sm font-semibold text-slate-700">{d.coursesCount}</td>
@@ -170,7 +170,7 @@ export default function AdminDepartments() {
                     <div className="flex items-center justify-center gap-1">
                       <button type="button" onClick={() => handleView(d.id)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-blue-50 text-blue-500" title="View"><i className="ri-eye-line text-sm" /></button>
                       <button type="button" onClick={() => handleOpenEdit(d)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-slate-500" title="Edit"><i className="ri-pencil-line text-sm" /></button>
-                      <button type="button" onClick={() => { setHeadModal(d); setHeadDoctorId(d.headOfDepartmentId ? String(d.headOfDepartmentId) : ''); }} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-violet-50 text-violet-500" title="Set Head"><i className="ri-shield-star-line text-sm" /></button>
+                      <button type="button" onClick={() => { setHeadModal(d); setHeadDoctorId(d.headDoctorId ? String(d.headDoctorId) : ''); }} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-violet-50 text-violet-500" title="Set Head"><i className="ri-shield-star-line text-sm" /></button>
                       <button type="button" onClick={() => setDeleteId(d.id)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-500" title="Delete"><i className="ri-delete-bin-line text-sm" /></button>
                     </div>
                   </td>
@@ -200,6 +200,10 @@ export default function AdminDepartments() {
             </div>
             <form onSubmit={handleCreate} className="p-5 space-y-4">
               <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Department Name *</label>
+                <input type="text" required value={createForm.name} onChange={e => setCreateForm(p => ({ ...p, name: e.target.value }))} className={inputCls} placeholder="e.g. Computer Science" />
+              </div>
+              <div>
                 <label className="block text-xs font-medium text-slate-600 mb-1">Department Type *</label>
                 <select value={createForm.departmentType} onChange={e => setCreateForm(p => ({ ...p, departmentType: Number(e.target.value) }))} className={inputCls}>
                   <option value={0}>General</option><option value={1}>Computer Science</option><option value={2}>Information Technology</option><option value={3}>Software Engineering</option><option value={4}>Artificial Intelligence</option><option value={5}>Cyber Security</option>
@@ -209,11 +213,11 @@ export default function AdminDepartments() {
                 <div><label className="block text-xs font-medium text-slate-600 mb-1">Code *</label>
                   <input type="text" required value={createForm.code} onChange={e => setCreateForm(p => ({ ...p, code: e.target.value }))} className={inputCls} placeholder="e.g. CS" /></div>
                 <div><label className="block text-xs font-medium text-slate-600 mb-1">Description</label>
-                  <input type="text" value={createForm.description || ''} onChange={e => setCreateForm(p => ({ ...p, description: e.target.value }))} className={inputCls} placeholder="e.g. Computer Science Department" /></div>
+                  <input type="text" value={createForm.description || ''} onChange={e => setCreateForm(p => ({ ...p, description: e.target.value }))} className={inputCls} placeholder="Optional description" /></div>
               </div>
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowCreate(false)} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-gray-50 transition-colors">Cancel</button>
-                <button type="submit" disabled={submitting || !createForm.code} className="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-50">
+                <button type="submit" disabled={submitting || !createForm.name || !createForm.code} className="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-50">
                   {submitting ? <span className="flex items-center gap-1"><i className="ri-loader-4-line animate-spin" /> Creating...</span> : 'Create Department'}
                 </button>
               </div>
@@ -227,10 +231,14 @@ export default function AdminDepartments() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-lg">
             <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-800">Edit Department — {editDept.description}</h2>
+              <h2 className="text-sm font-semibold text-slate-800">Edit Department — {editDept.name}</h2>
               <button type="button" onClick={() => setEditDept(null)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600"><i className="ri-close-line" /></button>
             </div>
             <form onSubmit={handleUpdate} className="p-5 space-y-4">
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Department Name</label>
+                <input type="text" value={editForm.name || ''} onChange={e => setEditForm(p => ({ ...p, name: e.target.value }))} className={inputCls} />
+              </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block text-xs font-medium text-slate-600 mb-1">Code</label>
                   <input type="text" value={editForm.code || ''} onChange={e => setEditForm(p => ({ ...p, code: e.target.value }))} className={inputCls} /></div>
@@ -253,7 +261,7 @@ export default function AdminDepartments() {
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-5">
             <h3 className="text-sm font-semibold text-slate-800 mb-1">Set Department Head</h3>
-            <p className="text-xs text-slate-400 mb-4">{headModal.description}</p>
+            <p className="text-xs text-slate-400 mb-4">{headModal.name}</p>
             <div className="mb-4">
               <label className="block text-xs font-medium text-slate-600 mb-1">Doctor ID</label>
               <input type="number" value={headDoctorId} onChange={e => setHeadDoctorId(e.target.value)} placeholder="Enter doctor ID or leave empty to remove" className={inputCls} />

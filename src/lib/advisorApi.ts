@@ -77,7 +77,7 @@ export async function createAdvisor(
   form: CreateAdvisorForm
 ): Promise<{ data: CreateAdvisorResponse | null; error?: string }> {
   try {
-    const res = await api.post<ApiResponse<CreateAdvisorResponse>>('/api/users/advisors', form);
+    const res = await api.post<ApiResponse<CreateAdvisorResponse>>('/api/admin/users/advisors', form);
     const raw = res.data as unknown as { success?: boolean; data?: CreateAdvisorResponse; message?: string };
     if (raw?.success && raw.data) return { data: raw.data };
     const d = res.data as ApiResponse<CreateAdvisorResponse>;

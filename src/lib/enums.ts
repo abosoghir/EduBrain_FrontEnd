@@ -37,10 +37,9 @@ export enum DoctorTitle {
 }
 
 export enum RoomType {
-  Office = 0,
-  LectureHall = 1,
-  Lab = 2,
-  ExamHall = 3,
+  LectureHall = 0,
+  Lab = 1,
+  Office = 2,
 }
 
 export enum NotificationType {
@@ -208,10 +207,9 @@ export const ENROLLMENT_STATUS_LABELS: Record<EnrollmentStatus, string> = {
 };
 
 export const ROOM_TYPE_LABELS: Record<RoomType, string> = {
-  [RoomType.Office]: 'Office',
   [RoomType.LectureHall]: 'Lecture Hall',
   [RoomType.Lab]: 'Lab',
-  [RoomType.ExamHall]: 'Exam Hall',
+  [RoomType.Office]: 'Office',
 };
 
 export const SCHEDULE_TYPE_LABELS: Record<ScheduleType, string> = {
