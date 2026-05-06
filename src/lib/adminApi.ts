@@ -14,6 +14,7 @@ import type {
   UpdateAcademicYearForm,
   CreateSemesterForm,
   UpdateSemesterForm,
+  UpdateRegistrationDatesForm,
   SemesterItem,
   RegistrationStatus,
   OpenRegistrationForm,
@@ -187,12 +188,15 @@ export async function deleteSemester(semesterId: number): Promise<{ success: boo
   } catch { return { success: false, error: 'Failed to delete semester' }; }
 }
 
-export async function setCurrentSemester(semesterId: number): Promise<{ success: boolean; error?: string }> {
+export async function updateRegistrationDates(
+  semesterId: number,
+  form: UpdateRegistrationDatesForm
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await api.put<unknown>(`/api/admin/semesters/${semesterId}/set-current`, {});
+    const res = await api.put<unknown>(`/api/admin/semesters/${semesterId}/registration-dates`, form);
     if (isSuccess(res)) return { success: true };
     return { success: false, error: getError(res) };
-  } catch { return { success: false, error: 'Failed to set current semester' }; }
+  } catch { return { success: false, error: 'Failed to update registration dates' }; }
 }
 
 // ============================================================

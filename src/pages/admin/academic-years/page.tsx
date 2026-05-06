@@ -2,13 +2,14 @@ import React, { useEffect, useState, useCallback } from 'react';
 import {
   fetchAcademicYears, fetchAcademicYearDetail,
   createAcademicYear, updateAcademicYear, deleteAcademicYear,
-  createSemester, updateSemester, deleteSemester, setCurrentSemester,
+  createSemester, updateSemester, deleteSemester,
+  updateRegistrationDates,
 } from '@/lib/adminApi';
-import { SEMESTER_NUMBER_LABELS } from '@/lib/enums';
+import { SEMESTER_NUMBER_LABELS, SemesterNumber } from '@/lib/enums';
 import type {
   AcademicYearListItem, AcademicYearDetail, SemesterItem,
   CreateAcademicYearForm, UpdateAcademicYearForm,
-  CreateSemesterForm, UpdateSemesterForm,
+  CreateSemesterForm, UpdateSemesterForm, UpdateRegistrationDatesForm,
 } from '@/types/admin';
 
 const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400';
@@ -20,8 +21,22 @@ const EMPTY_SEM: CreateSemesterForm = {
   midtermStart: null, midtermEnd: null,
   finalExamStart: null, finalExamEnd: null,
   maxCreditHoursPerStudent: 18, minCreditHoursPerStudent: 12,
-  tuitionFees: null, isCurrent: false,
+  tuitionFees: null,
 };
+const EMPTY_REG: UpdateRegistrationDatesForm = { addDropDeadline: null, withdrawDeadline: null };
+
+function fmtDate(iso: string | null | undefined): string {
+  if (!iso) return '—';
+  try { return new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' }); }
+  catch { return iso; }
+}
+function toInputDate(iso: string | null | undefined): string {
+  if (!iso) return '';
+  return iso.slice(0, 10);
+}
+function semLabel(n: number): string {
+  return SEMESTER_NUMBER_LABELS[n as SemesterNumber] ?? `Semester ${n}`;
+}
 
 export default function AdminAcademicYears() {
   const [years, setYears] = useState<AcademicYearListItem[]>([]);
@@ -73,7 +88,7 @@ export default function AdminAcademicYears() {
   const openCreateYear = () => { setEditingYear(null); setYearForm(EMPTY_YEAR); setShowYearModal(true); };
   const openEditYear = (y: AcademicYearListItem) => {
     setEditingYear(y);
-    setYearForm({ name: y.name, startDate: y.startDate, endDate: y.endDate });
+    setYearForm({ name: y.name, startDate: toInputDate(y.startDate), endDate: toInputDate(y.endDate) });
     setShowYearModal(true);
   };
   const submitYear = async (e: React.FormEvent) => {
@@ -96,12 +111,14 @@ export default function AdminAcademicYears() {
     setActiveSemYearId(yearId); setEditingSem(s);
     setSemForm({
       semesterNumber: s.semesterNumber,
-      startDate: s.startDate, endDate: s.endDate,
-      midtermStart: s.midtermStart, midtermEnd: s.midtermEnd,
-      finalExamStart: s.finalExamStart, finalExamEnd: s.finalExamEnd,
+      startDate: toInputDate(s.startDate), endDate: toInputDate(s.endDate),
+      midtermStart: s.midtermStart ? toInputDate(s.midtermStart) : null,
+      midtermEnd: s.midtermEnd ? toInputDate(s.midtermEnd) : null,
+      finalExamStart: s.finalExamStart ? toInputDate(s.finalExamStart) : null,
+      finalExamEnd: s.finalExamEnd ? toInputDate(s.finalExamEnd) : null,
       maxCreditHoursPerStudent: s.maxCreditHoursPerStudent,
       minCreditHoursPerStudent: s.minCreditHoursPerStudent,
-      tuitionFees: s.tuitionFees, isCurrent: s.isCurrent,
+      tuitionFees: s.tuitionFees,
     });
     setShowSemModal(true);
   };
@@ -118,10 +135,19 @@ export default function AdminAcademicYears() {
     if (expandedId) { const res = await fetchAcademicYearDetail(expandedId); if (res.data) setExpandedDetail(res.data); }
   };
 
-  const handleSetCurrent = async (semId: number) => {
-    const res = await setCurrentSemester(semId);
-    res.success ? showToast('Current semester updated') : showToast(res.error || 'Failed', false);
-    if (expandedId) { const res2 = await fetchAcademicYearDetail(expandedId); if (res2.data) setExpandedDetail(res2.data); }
+  // Registration dates modal state
+  const [showRegModal, setShowRegModal] = useState(false);
+  const [regSemId, setRegSemId] = useState<number | null>(null);
+  const [regForm, setRegForm] = useState<UpdateRegistrationDatesForm>(EMPTY_REG);
+
+  const openRegDates = (semId: number) => {
+    setRegSemId(semId); setRegForm(EMPTY_REG); setShowRegModal(true);
+  };
+  const submitRegDates = async (e: React.FormEvent) => {
+    e.preventDefault(); setSubmitting(true);
+    const res = await updateRegistrationDates(regSemId!, regForm);
+    res.success ? showToast('Registration dates updated') : showToast(res.error || 'Failed', false);
+    setSubmitting(false); setShowRegModal(false);
   };
 
   const confirmDeleteYear = async () => {
@@ -174,9 +200,8 @@ export default function AdminAcademicYears() {
                 <div>
                   <div className="flex items-center gap-2">
                     <p className="text-sm font-semibold text-slate-800">{y.name}</p>
-                    {y.status === 'Active' && <span className="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-50 text-emerald-600">Active</span>}
                   </div>
-                  <p className="text-[10px] text-slate-400">{y.startDate} — {y.endDate} · {y.semestersCount} semester{y.semestersCount !== 1 ? 's' : ''}</p>
+                  <p className="text-[10px] text-slate-400">{fmtDate(y.startDate)} — {fmtDate(y.endDate)} · {y.semestersCount} semester{y.semestersCount !== 1 ? 's' : ''}</p>
                 </div>
                 <i className={`ri-arrow-${expandedId === y.id ? 'up' : 'down'}-s-line text-slate-400 ml-auto mr-2`} />
               </button>
@@ -206,20 +231,15 @@ export default function AdminAcademicYears() {
                     {(expandedDetail.semesters || []).map(s => (
                       <div key={s.id} className="flex items-center justify-between px-4 py-3 rounded-lg bg-gray-50 border border-gray-100">
                         <div>
-                          <div className="flex items-center gap-2">
-                            <p className="text-xs font-semibold text-slate-700">{s.semesterNumberDisplay}</p>
-                            {s.isCurrent && <span className="px-1.5 py-0.5 rounded-full text-[10px] font-medium bg-blue-50 text-blue-600">Current</span>}
-                          </div>
-                          <p className="text-[10px] text-slate-400">{s.startDate} — {s.endDate} · {s.courseInstancesCount} instances</p>
-                          {s.tuitionFees != null && <p className="text-[10px] text-slate-400">Fees: {s.tuitionFees} · Credits: {s.minCreditHoursPerStudent}–{s.maxCreditHoursPerStudent}h</p>}
+                          <p className="text-xs font-semibold text-slate-700">{semLabel(s.semesterNumber)}</p>
+                          <p className="text-[10px] text-slate-400">{fmtDate(s.startDate)} — {fmtDate(s.endDate)} · {s.courseInstancesCount} instances</p>
+                          {s.tuitionFees != null && <p className="text-[10px] text-slate-400">Fees: {s.tuitionFees.toLocaleString()} · Credits: {s.minCreditHoursPerStudent}–{s.maxCreditHoursPerStudent}h</p>}
                         </div>
                         <div className="flex items-center gap-1">
-                          {!s.isCurrent && (
-                            <button type="button" onClick={() => handleSetCurrent(s.id)}
-                              className="px-2 py-1 text-[10px] rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors whitespace-nowrap">
-                              Set Current
-                            </button>
-                          )}
+                          <button type="button" onClick={() => openRegDates(s.id)}
+                            className="px-2 py-1 text-[10px] rounded bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors whitespace-nowrap">
+                            Reg Dates
+                          </button>
                           <button type="button" onClick={() => openEditSem(y.id, s)}
                             className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-200 text-slate-500">
                             <i className="ri-pencil-line text-sm" />
@@ -352,11 +372,6 @@ export default function AdminAcademicYears() {
                 </div>
               </div>
 
-              <label className="flex items-center gap-2 text-sm text-slate-600 cursor-pointer">
-                <input type="checkbox" checked={semForm.isCurrent ?? false} onChange={e => sf('isCurrent', e.target.checked)} className="rounded border-gray-300" />
-                Set as Current Semester
-              </label>
-
               <div className="flex items-center justify-end gap-2 pt-2">
                 <button type="button" onClick={() => setShowSemModal(false)} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-gray-50">Cancel</button>
                 <button type="submit" disabled={submitting || !semForm.startDate || !semForm.endDate}
@@ -395,6 +410,35 @@ export default function AdminAcademicYears() {
               <button type="button" onClick={() => setDeleteSemId(null)} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-gray-50">Cancel</button>
               <button type="button" onClick={confirmDeleteSem} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700">Delete</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Registration Dates Modal */}
+      {showRegModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-800">Update Registration Dates</h2>
+              <button type="button" onClick={() => setShowRegModal(false)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600"><i className="ri-close-line" /></button>
+            </div>
+            <form onSubmit={submitRegDates} className="p-5 space-y-4">
+              <div>
+                <label className={labelCls}>Add/Drop Deadline</label>
+                <input type="date" value={regForm.addDropDeadline || ''} onChange={e => setRegForm(p => ({ ...p, addDropDeadline: e.target.value || null }))} className={inputCls} />
+              </div>
+              <div>
+                <label className={labelCls}>Withdraw Deadline</label>
+                <input type="date" value={regForm.withdrawDeadline || ''} onChange={e => setRegForm(p => ({ ...p, withdrawDeadline: e.target.value || null }))} className={inputCls} />
+              </div>
+              <div className="flex items-center justify-end gap-2 pt-2">
+                <button type="button" onClick={() => setShowRegModal(false)} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-gray-50">Cancel</button>
+                <button type="submit" disabled={submitting}
+                  className="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 disabled:opacity-50 transition-colors">
+                  {submitting ? <span className="flex items-center gap-1"><i className="ri-loader-4-line animate-spin" /> Saving...</span> : 'Update Dates'}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}

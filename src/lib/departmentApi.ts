@@ -113,7 +113,7 @@ export async function setDepartmentHead(
   doctorId: number | null
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await api.put<unknown>(`/api/admin/departments/${departmentId}/set-head`, { doctorId });
+    const res = await api.put<unknown>(`/api/admin/departments/${departmentId}/head`, { doctorId });
     const raw = res.data as { success?: boolean } & ApiResponse<boolean>;
     if (raw?.success) return { success: true };
     if (raw && 'isSuccess' in raw && raw.isSuccess) return { success: true };

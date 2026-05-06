@@ -44,18 +44,16 @@ export interface ActivityItem {
 export interface AcademicYearListItem {
   id: number;
   name: string;
-  startDate: string;
-  endDate: string;
+  startDate: string;            // ISO 8601
+  endDate: string;              // ISO 8601
   semestersCount: number;
-  status: string; // "Active" | "Inactive"
 }
 
 export interface SemesterItem {
   id: number;
   semesterNumber: number;              // 0=First, 1=Second, 2=Summer
-  semesterNumberDisplay: string;       // "First" | "Second" | "Summer"
-  startDate: string;
-  endDate: string;
+  startDate: string;                   // ISO 8601
+  endDate: string;                     // ISO 8601
   midtermStart: string | null;
   midtermEnd: string | null;
   finalExamStart: string | null;
@@ -63,7 +61,6 @@ export interface SemesterItem {
   maxCreditHoursPerStudent: number;
   minCreditHoursPerStudent: number;
   tuitionFees: number | null;
-  isCurrent: boolean;
   courseInstancesCount: number;
 }
 
@@ -98,10 +95,15 @@ export interface CreateSemesterForm {
   midtermEnd?: string | null;
   finalExamStart?: string | null;
   finalExamEnd?: string | null;
-  maxCreditHoursPerStudent?: number;
-  minCreditHoursPerStudent?: number;
+  maxCreditHoursPerStudent?: number;   // default 18
+  minCreditHoursPerStudent?: number;   // default 12
   tuitionFees?: number | null;
-  isCurrent?: boolean;
+}
+
+// Update Registration Dates (PUT /api/admin/semesters/{semesterId}/registration-dates)
+export interface UpdateRegistrationDatesForm {
+  addDropDeadline?: string | null;     // date string
+  withdrawDeadline?: string | null;    // date string
 }
 
 // Update Semester (PUT /api/admin/semesters/{id})
@@ -306,30 +308,28 @@ export interface EnrollmentListItem {
 
 export interface DepartmentListItem {
   id: number;
-  name: string;
+  departmentType: number;              // 0=General … 5=CyberSecurity
   code: string;
   description: string;
-  departmentType: number;
-  departmentTypeDisplay: string;
-  headDoctorId: number | null;
-  headDoctorName: string | null;
-  coursesCount: number;
   studentsCount: number;
   doctorsCount: number;
+  coursesCount: number;
+  headOfDepartmentId: number | null;
+  headOfDepartmentName: string | null;
 }
 
 export interface DeptStudent {
   id: number;
   name: string;
   email: string;
-  yearLevel: string;
+  yearLevel: string;                   // "Sophomore", "Junior", etc.
 }
 
 export interface DeptDoctor {
   id: number;
   name: string;
   email: string;
-  title: string;
+  title: string;                       // "Professor", "AssistantProfessor", etc.
 }
 
 export interface DeptCourse {
@@ -341,13 +341,11 @@ export interface DeptCourse {
 
 export interface DepartmentDetail {
   id: number;
-  name: string;
+  departmentType: string;              // "ComputerScience", "General", etc.
   code: string;
   description: string;
-  departmentType: number;
-  departmentTypeDisplay: string;
-  headDoctorId: number | null;
-  headDoctorName: string | null;
+  headOfDepartmentId: number | null;
+  headOfDepartmentName: string | null;
   studentsCount: number;
   doctorsCount: number;
   coursesCount: number;
@@ -358,20 +356,15 @@ export interface DepartmentDetail {
 
 // Create Department (POST /api/admin/departments)
 export interface CreateDepartmentForm {
-  name: string;
+  departmentType: number;              // 0=General … 5=CyberSecurity
   code: string;
   description?: string;
-  departmentType: number;
-  headDoctorId?: number | null;
 }
 
 // Update Department (PUT /api/admin/departments/{id})
 export interface UpdateDepartmentForm {
-  name?: string;
   code?: string;
   description?: string;
-  departmentType?: number;
-  headDoctorId?: number | null;
 }
 
 // ============================================================
