@@ -6,12 +6,6 @@
 import { api } from './api';
 import type {
   StudentDashboardData,
-  RegistrationStatus,
-  AvailableCoursesResponse,
-  RegisterCourseRequest,
-  RegisterCourseResponse,
-  DropCourseResponse,
-  RegistrationRegisteredCoursesResponse,
   StudentCoursesResponse,
   StudentCourseDetail,
   StudentCourseMaterialsResponse,
@@ -55,46 +49,7 @@ export async function fetchStudentDashboard(): Promise<StudentDashboardData> {
 }
 
 // ---- Registration ----
-
-export async function fetchRegistrationStatus(): Promise<RegistrationStatus> {
-  const res = await api.get<ApiWrapper<RegistrationStatus>>('/api/student/registration/status');
-  return unwrap(res);
-}
-
-export async function fetchAvailableCourses(params?: {
-  departmentId?: number;
-  yearLevel?: number;
-  electiveOnly?: boolean;
-}): Promise<AvailableCoursesResponse> {
-  const parts: string[] = [];
-  if (params?.departmentId !== undefined) parts.push(`departmentId=${params.departmentId}`);
-  if (params?.yearLevel !== undefined) parts.push(`yearLevel=${params.yearLevel}`);
-  if (params?.electiveOnly !== undefined) parts.push(`electiveOnly=${params.electiveOnly}`);
-  const qs = parts.length > 0 ? `?${parts.join('&')}` : '';
-  const res = await api.get<ApiWrapper<AvailableCoursesResponse>>(`/api/student/registration/available-courses${qs}`);
-  return unwrap(res);
-}
-
-export async function fetchMyRegistrationCourses(): Promise<RegistrationRegisteredCoursesResponse> {
-  const res = await api.get<ApiWrapper<RegistrationRegisteredCoursesResponse>>('/api/student/registration/my-courses');
-  return unwrap(res);
-}
-
-export async function registerForCourse(courseInstanceId: number): Promise<RegisterCourseResponse> {
-  const payload: RegisterCourseRequest = { courseInstanceId };
-  const res = await api.post<ApiWrapper<RegisterCourseResponse>>(
-    '/api/student/registration/register',
-    payload
-  );
-  return unwrap(res);
-}
-
-export async function dropCourse(enrollmentId: number): Promise<DropCourseResponse> {
-  const res = await api.delete<ApiWrapper<DropCourseResponse>>(
-    `/api/student/registration/drop/${enrollmentId}`
-  );
-  return unwrap(res);
-}
+// Note: Registration APIs have been moved to studentRegistrationApi.ts
 
 // ---- Courses ----
 

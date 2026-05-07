@@ -19,6 +19,7 @@ export interface AuthState {
 export interface LoginRequest {
   email: string;
   password: string;
+  role?: number;
 }
 
 // Shape of data.data from the login API response
@@ -30,4 +31,16 @@ export interface LoginResponseData {
   token: string;
   refreshToken: string;
   expiresIn: number;
+}
+
+export interface ForgotPasswordRequest {
+  email: string;
+}
+
+export interface ResetPasswordRequest {
+  token: string;
+  code?: string;
+  email: string;
+  password: string;
+  confirmPassword: string;
 }

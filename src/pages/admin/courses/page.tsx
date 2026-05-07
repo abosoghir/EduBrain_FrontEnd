@@ -3,7 +3,7 @@ import type { CourseListItem, CourseDetail, CreateCourseForm, UpdateCourseForm, 
 import { COURSE_TYPE_LABELS } from '@/lib/enums';
 import {
   fetchCourses, fetchCourseDetail, createCourse, updateCourse, deleteCourse,
-  removePrerequisite, deleteCourseInstance, fetchDepartments,
+  removePrerequisite, addPrerequisite, deleteCourseInstance, fetchDepartments,
 } from '@/lib/courseApi';
 import CourseDetailPanel from './CourseDetailPanel';
 
@@ -21,6 +21,11 @@ export default function AdminCourses() {
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+
+  const [showAddPrerequisite, setShowAddPrerequisite] = useState(false);
+  const [addPrereqId, setAddPrereqId] = useState<number | ''>('');
+  const [removePrereqId, setRemovePrereqId] = useState<number | null>(null);
+  const [allCourses, setAllCourses] = useState<CourseListItem[]>([]);
 
   const emptyCreate: CreateCourseForm = {
     name: '', code: '', description: '', creditHours: 3, theoryHours: 2, practicalHours: 2,
@@ -42,6 +47,9 @@ export default function AdminCourses() {
 
   useEffect(() => { loadData(); }, [loadData]);
   useEffect(() => { fetchDepartments().then(setDepartments); }, []);
+  useEffect(() => {
+    fetchCourses({}).then(res => setAllCourses(res.data));
+  }, []);
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); } }, [toast]);
 
   const handleCreate = async (e: React.FormEvent) => {
@@ -81,14 +89,35 @@ export default function AdminCourses() {
     setDeleteId(null);
   };
 
-  const handleRemovePrerequisite = async (prereqId: number) => {
-    if (!viewCourse) return;
-    const res = await removePrerequisite(viewCourse.id, prereqId);
+  const handleConfirmRemovePrerequisite = async () => {
+    if (!viewCourse || removePrereqId === null) return;
+    const res = await removePrerequisite(viewCourse.id, removePrereqId);
     if (res.success) {
-      setToast('Prerequisite removed');
+      setToast('Prerequisite removed successfully');
       const refreshed = await fetchCourseDetail(viewCourse.id);
       if (refreshed.data) setViewCourse(refreshed.data);
+      loadData();
     } else setToast(res.error || 'Failed to remove');
+    setRemovePrereqId(null);
+  };
+
+  const handleAddPrerequisiteSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!viewCourse || !addPrereqId) return;
+    setSubmitting(true);
+    const res = await addPrerequisite(viewCourse.id, Number(addPrereqId));
+    setSubmitting(false);
+    if (res.success) {
+      setToast('Prerequisite added successfully');
+      setShowAddPrerequisite(false);
+      setAddPrereqId('');
+      const refreshed = await fetchCourseDetail(viewCourse.id);
+      if (refreshed.data) setViewCourse(refreshed.data);
+      loadData();
+    } else {
+      // Show specific error messages (e.g. Circular dependency)
+      setToast(res.error || 'Failed to add prerequisite');
+    }
   };
 
   const handleDeleteInstance = async (instanceId: number) => {
@@ -184,7 +213,7 @@ export default function AdminCourses() {
         </div>
       )}
 
-      {viewCourse && <CourseDetailPanel course={viewCourse} onClose={() => setViewCourse(null)} onRemovePrerequisite={handleRemovePrerequisite} onDeleteInstance={handleDeleteInstance} />}
+      {viewCourse && <CourseDetailPanel course={viewCourse} onClose={() => setViewCourse(null)} onRemovePrerequisite={(id) => setRemovePrereqId(id)} onAddPrerequisiteClick={() => setShowAddPrerequisite(true)} onDeleteInstance={handleDeleteInstance} />}
 
       {/* Create Modal */}
       {showCreate && (
@@ -296,6 +325,54 @@ export default function AdminCourses() {
             <div className="flex items-center justify-end gap-2">
               <button type="button" onClick={() => setDeleteId(null)} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-gray-50 transition-colors">Cancel</button>
               <button type="button" onClick={handleDelete} className="px-4 py-2 bg-red-600 text-white rounded-lg text-sm font-medium hover:bg-red-700 transition-colors">Delete</button>
+            </div>
+          </div>
+        </div>
+      )}
+      {/* Add Prerequisite Modal */}
+      {showAddPrerequisite && viewCourse && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm">
+            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-800">Add Prerequisite</h2>
+              <button type="button" onClick={() => { setShowAddPrerequisite(false); setAddPrereqId(''); }} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600"><i className="ri-close-line" /></button>
+            </div>
+            <form onSubmit={handleAddPrerequisiteSubmit} className="p-5">
+              <div className="mb-4">
+                <label className="block text-xs font-medium text-slate-600 mb-1">Select Course to Require</label>
+                <select required value={addPrereqId} onChange={e => setAddPrereqId(e.target.value ? Number(e.target.value) : '')} className={inputCls}>
+                  <option value="">-- Choose a Course --</option>
+                  {allCourses
+                    .filter(c => c.id !== viewCourse.id) // Cannot be itself
+                    .filter(c => !viewCourse.prerequisites.some(p => p.id === c.id)) // Cannot be an existing prerequisite
+                    .map(c => (
+                      <option key={c.id} value={c.id}>{c.code} — {c.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center justify-end gap-2">
+                <button type="button" onClick={() => { setShowAddPrerequisite(false); setAddPrereqId(''); }} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-gray-50 transition-colors">Cancel</button>
+                <button type="submit" disabled={submitting || !addPrereqId} className="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 transition-colors disabled:opacity-50">
+                  {submitting ? 'Adding...' : 'Add'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Remove Prerequisite Confirm */}
+      {removePrereqId !== null && viewCourse && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
+          <div className="bg-white rounded-xl shadow-lg w-full max-w-sm p-5">
+            <div className="w-12 h-12 rounded-full bg-orange-50 flex items-center justify-center mx-auto mb-4"><i className="ri-error-warning-line text-orange-500 text-xl" /></div>
+            <h3 className="text-sm font-semibold text-slate-800 text-center mb-1">Remove Prerequisite?</h3>
+            <p className="text-xs text-slate-500 text-center mb-5">
+              Are you sure you want to remove this prerequisite? Students will no longer need to complete it before enrolling in <strong>{viewCourse.name}</strong>.
+            </p>
+            <div className="flex items-center justify-end gap-2">
+              <button type="button" onClick={() => setRemovePrereqId(null)} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-gray-50 transition-colors">Cancel</button>
+              <button type="button" onClick={handleConfirmRemovePrerequisite} className="px-4 py-2 bg-orange-600 text-white rounded-lg text-sm font-medium hover:bg-orange-700 transition-colors">Yes, Remove</button>
             </div>
           </div>
         </div>

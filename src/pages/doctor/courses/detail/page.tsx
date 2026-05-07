@@ -233,7 +233,7 @@ export default function DoctorCourseDetail() {
                       </span>
                     </td>
                     <td className="px-5 py-3 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${s.status === EnrollmentStatus.Enrolled ? 'bg-emerald-50 text-emerald-600' : s.status === EnrollmentStatus.Waitlisted ? 'bg-amber-50 text-amber-600' : s.status === EnrollmentStatus.Dropped ? 'bg-red-50 text-red-600' : s.status === EnrollmentStatus.Completed ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${s.status === EnrollmentStatus.Enrolled ? 'bg-emerald-50 text-emerald-600' : s.status === EnrollmentStatus.Waitlisted ? 'bg-amber-50 text-amber-600' : s.status === EnrollmentStatus.Dropped ? 'bg-red-50 text-red-600' : s.status === EnrollmentStatus.Pending ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'
                         }`}>
                         {ENROLLMENT_STATUS_LABELS[s.status as EnrollmentStatus] || `Status ${s.status}`}
                       </span>

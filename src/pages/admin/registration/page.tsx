@@ -51,13 +51,17 @@ export default function AdminRegistration() {
     setTimeout(() => setToast(null), 2800);
   };
 
+  const [semestersLoaded, setSemestersLoaded] = useState(false);
+  const [activeSemesterId, setActiveSemesterId] = useState<number | undefined>();
+
   const loadSettings = useCallback(async () => {
+    if (!semestersLoaded) return;
     setLoading(true);
-    const res = await fetchRegistrationSettings();
+    const res = await fetchRegistrationSettings(activeSemesterId);
     if (res.data) setSettings(res.data);
     else setSettings(null);
     setLoading(false);
-  }, []);
+  }, [semestersLoaded, activeSemesterId]);
 
   const loadActivityLog = useCallback(async (params: RegistrationActivityLogParams) => {
     setActivityLoading(true);
@@ -67,8 +71,15 @@ export default function AdminRegistration() {
   }, []);
 
   useEffect(() => {
+    fetchSemesterOptions().then(res => {
+      setSemesters(res);
+      if (res.length > 0) setActiveSemesterId(res[0].id);
+      setSemestersLoaded(true);
+    });
+  }, []);
+
+  useEffect(() => {
     loadSettings();
-    fetchSemesterOptions().then(setSemesters);
   }, [loadSettings]);
 
   useEffect(() => {
@@ -95,7 +106,8 @@ export default function AdminRegistration() {
   const handleCloseWindow = async () => {
     if (!settings) return;
     setSubmitting(true);
-    const res = await closeRegistrationWindow(settings.semesterId);
+    const windowId = settings.windowId || settings.semesterId;
+    const res = await closeRegistrationWindow(windowId);
     setSubmitting(false);
     if (res.success) { showToast('Registration closed'); setShowCloseConfirm(false); loadSettings(); }
     else showToast(res.error || 'Failed', false);
@@ -274,6 +286,13 @@ export default function AdminRegistration() {
         <div className="bg-white rounded-xl border border-gray-100 p-5">
           {/* Filters */}
           <div className="flex flex-wrap items-end gap-3 mb-4">
+            <div>
+              <label className={labelCls}>Semester</label>
+              <select value={activityParams.semesterId ?? ''} onChange={e => setActivityParams(p => ({ ...p, semesterId: e.target.value ? Number(e.target.value) : undefined, page: 1 }))} className={`${inputCls} w-40`}>
+                <option value="">Current / All</option>
+                {semesters.map(s => <option key={s.id} value={s.id}>{s.name}</option>)}
+              </select>
+            </div>
             <div>
               <label className={labelCls}>Status</label>
               <select value={activityParams.status ?? ''} onChange={e => setActivityParams(p => ({ ...p, status: e.target.value ? Number(e.target.value) : undefined, page: 1 }))} className={`${inputCls} w-36`}>

@@ -8,10 +8,11 @@ interface Props {
   course: CourseDetail;
   onClose: () => void;
   onRemovePrerequisite?: (prereqId: number) => void;
+  onAddPrerequisiteClick?: () => void;
   onDeleteInstance?: (instanceId: number) => void;
 }
 
-export default function CourseDetailPanel({ course: c, onClose, onRemovePrerequisite, onDeleteInstance }: Props) {
+export default function CourseDetailPanel({ course: c, onClose, onRemovePrerequisite, onAddPrerequisiteClick, onDeleteInstance }: Props) {
   const [tab, setTab] = useState<Tab>('overview');
   const tabs: { key: Tab; label: string; icon: string; count: number }[] = [
     { key: 'overview', label: 'Overview', icon: 'ri-book-line', count: 0 },
@@ -67,7 +68,16 @@ export default function CourseDetailPanel({ course: c, onClose, onRemovePrerequi
           )}
 
           {tab === 'prerequisites' && (
-            <div>{c.prerequisites.length === 0 ? <p className="text-sm text-slate-400 text-center py-8">No prerequisites.</p> : (
+            <div>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-sm font-semibold text-slate-700">Required Courses</h3>
+                {onAddPrerequisiteClick && (
+                  <button type="button" onClick={onAddPrerequisiteClick} className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-medium text-slate-600 hover:bg-gray-50 border border-gray-200 transition-colors">
+                    <i className="ri-add-line" /> Add Prerequisite
+                  </button>
+                )}
+              </div>
+              {c.prerequisites.length === 0 ? <p className="text-sm text-slate-400 text-center py-8">No prerequisites.</p> : (
               <div className="space-y-2">{c.prerequisites.map(p => (
                 <div key={p.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl">
                   <div><p className="text-sm font-medium text-slate-700">{p.courseName}</p><p className="text-[10px] text-slate-400">{p.courseCode}</p></div>

@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { fetchNotifications, sendNotification } from '@/lib/notificationApi';
-import type { NotificationItem, NotificationFilterParams, SendNotificationForm } from '@/types/admin';
+import { fetchDepartments } from '@/lib/courseApi';
+import type { NotificationItem, NotificationFilterParams, SendNotificationForm, DepartmentOption } from '@/types/admin';
 import { NOTIFICATION_TYPE_LABELS, NotificationType } from '@/lib/enums';
 
 const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400';
@@ -22,6 +23,7 @@ export default function AdminNotifications() {
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [form, setForm] = useState<SendNotificationForm>(EMPTY_FORM);
+  const [departments, setDepartments] = useState<DepartmentOption[]>([]);
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
@@ -38,6 +40,7 @@ export default function AdminNotifications() {
   }, [filters]);
 
   useEffect(() => { loadData(1); }, [loadData]);
+  useEffect(() => { fetchDepartments().then(setDepartments); }, []);
   useEffect(() => { if (toast) { const t = setTimeout(() => setToast(null), 3000); return () => clearTimeout(t); } }, [toast]);
 
   const handleOpenCreate = () => { setForm(EMPTY_FORM); setShowModal(true); };
@@ -53,6 +56,7 @@ export default function AdminNotifications() {
     if (form.sendToAll) {
       payload.sendToAll = true;
     } else {
+      payload.sendToAll = false;
       if (form.studentIds && form.studentIds.length > 0) payload.studentIds = form.studentIds;
       if (form.departmentId) payload.departmentId = form.departmentId;
       if (form.yearLevel !== undefined && form.yearLevel !== null) payload.yearLevel = form.yearLevel;
@@ -95,8 +99,9 @@ export default function AdminNotifications() {
       <div className="flex flex-col sm:flex-row gap-3 mb-6 flex-wrap">
         <div className="relative flex-1 min-w-[200px] max-w-sm">
           <i className="ri-search-line absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm" />
-          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by title or message..." className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-200" />
+          <input type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="Search locally by title or message..." className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-200" />
         </div>
+        <input type="number" min={1} value={filters.studentId ?? ''} onChange={e => setFilters(p => ({ ...p, studentId: e.target.value ? Number(e.target.value) : undefined }))} placeholder="Student ID" className="w-32 px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-200" />
         <select value={filters.type ?? ''} onChange={e => setFilters(p => ({ ...p, type: e.target.value !== '' ? Number(e.target.value) : undefined }))} className="px-3 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-slate-200">
           <option value="">All Types</option>
           {Object.entries(NOTIFICATION_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
@@ -189,17 +194,21 @@ export default function AdminNotifications() {
                 {!form.sendToAll && (
                   <div className="grid grid-cols-2 gap-3">
                     <div>
-                      <label className={labelCls}>Department ID</label>
-                      <input type="number" min={1} value={form.departmentId ?? ''} onChange={e => setForm(p => ({ ...p, departmentId: e.target.value ? Number(e.target.value) : undefined }))} className={inputCls} placeholder="Optional" />
+                      <label className={labelCls}>Department</label>
+                      <select value={form.departmentId ?? ''} onChange={e => setForm(p => ({ ...p, departmentId: e.target.value ? Number(e.target.value) : undefined }))} className={inputCls}>
+                        <option value="">All Departments</option>
+                        {departments.map(d => <option key={d.id} value={d.id}>{d.name || d.code}</option>)}
+                      </select>
                     </div>
                     <div>
                       <label className={labelCls}>Year Level</label>
                       <select value={form.yearLevel ?? ''} onChange={e => setForm(p => ({ ...p, yearLevel: e.target.value ? Number(e.target.value) : undefined }))} className={inputCls}>
                         <option value="">All Years</option>
-                        <option value={0}>Freshman</option>
-                        <option value={1}>Sophomore</option>
-                        <option value={2}>Junior</option>
-                        <option value={3}>Senior</option>
+                        <option value={1}>First Year</option>
+                        <option value={2}>Second Year</option>
+                        <option value={3}>Third Year</option>
+                        <option value={4}>Fourth Year</option>
+                        <option value={5}>Fifth Year</option>
                       </select>
                     </div>
                     <div className="col-span-2">

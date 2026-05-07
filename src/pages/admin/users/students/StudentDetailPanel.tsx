@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { StudentDetail } from '@/types/admin';
 import {
   YEAR_LEVEL_LABELS, GENDER_LABELS, GRADE_LABELS, ENROLLMENT_STATUS_LABELS,
-  SCHEDULE_TYPE_LABELS, DAY_OF_WEEK_LABELS, PAYMENT_STATUS_LABELS, PAYMENT_METHOD_LABELS,
+  SCHEDULE_TYPE_LABELS, DAY_OF_WEEK_LABELS, FEE_STATUS_LABELS, PAYMENT_METHOD_LABELS,
 } from '@/lib/enums';
 
 type Tab = 'overview' | 'courses' | 'schedule' | 'grades' | 'attendance' | 'fees';
@@ -192,7 +192,7 @@ export default function StudentDetailPanel({ student, onClose }: Props) {
                     <div><p className="text-slate-400">Paid</p><p className="font-bold text-emerald-600">{student.currentFees.paidAmount.toLocaleString()}</p></div>
                     <div><p className="text-slate-400">Remaining</p><p className="font-bold text-red-600">{student.currentFees.remainingAmount.toLocaleString()}</p></div>
                   </div>
-                  <div className="mt-2 text-center"><span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">{PAYMENT_STATUS_LABELS[student.currentFees.status as keyof typeof PAYMENT_STATUS_LABELS]}</span></div>
+                  <div className="mt-2 text-center"><span className="text-[10px] px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 font-medium">{FEE_STATUS_LABELS[student.currentFees.status as keyof typeof FEE_STATUS_LABELS]}</span></div>
                 </div>
               )}
               {student.installments.length > 0 && (
@@ -200,7 +200,7 @@ export default function StudentDetailPanel({ student, onClose }: Props) {
                   <div className="space-y-2">{student.installments.map((inst) => (
                     <div key={inst.id} className="flex items-center justify-between p-3 bg-gray-50 rounded-xl text-xs">
                       <div><p className="font-medium text-slate-700">Installment #{inst.installmentNumber}</p><p className="text-[10px] text-slate-400">Due: {fmtDate(inst.dueDate)}{inst.paidDate ? ` · Paid: ${fmtDate(inst.paidDate)}` : ''}</p></div>
-                      <div className="text-right"><p className="font-bold text-slate-700">{inst.amount.toLocaleString()}</p><span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${inst.status === 1 ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{PAYMENT_STATUS_LABELS[inst.status as keyof typeof PAYMENT_STATUS_LABELS]}</span></div>
+                      <div className="text-right"><p className="font-bold text-slate-700">{inst.amount.toLocaleString()}</p><span className={`text-[10px] px-2 py-0.5 rounded-full font-medium ${inst.status === 1 ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'}`}>{FEE_STATUS_LABELS[inst.status as keyof typeof FEE_STATUS_LABELS]}</span></div>
                     </div>
                   ))}</div>
                 </div>

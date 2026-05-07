@@ -49,87 +49,161 @@ export interface StudentDashboardData {
   upcomingExams: StudentDashboardExam[];
 }
 
-// ---- Registration Status (GET /api/student/registration/status) ----
+// ---- Student Registration (API Integration Student Course Registration) ----
 
-export interface RegistrationStatus {
-  status: number;
-  registrationOpenDate: string | null;
-  registrationCloseDate: string | null;
-  statusMessage: string;
-  registeredHours: number;
-  maxCreditHours: number;
-  minCreditHours: number;
-  remainingHours: number;
-  canRegisterMore: boolean;
-  meetsMinimumHours: boolean;
+export interface CreditHoursSummary {
+  completedCredits: number;
+  registeredCredits: number;
+  pendingCredits: number;
+  currentCredits: number;
+  minRequiredCredits: number;
+  maxAllowedCredits: number;
+  remainingCreditCapacity: number;
 }
 
-// ---- Available Courses (GET /api/student/registration/available-courses) ----
+export interface RegistrationNotification {
+  id: number;
+  type: 'info' | 'warning' | 'success' | 'error';
+  message: string;
+  createdAt?: string;
+}
 
-export interface AvailableCourseScheduleSlot {
-  day: number;             // DayOfWeek enum
+export interface StudentRegistrationStatus {
+  studentId: number;
+  studentCode: string;
+  studentName: string;
+  studentEmail: string;
+  studentYear: number;
+  semesterId: number;
+  semesterName: string;
+  registrationStatus: number;  // 0=Open, 1=Closed
+  registrationStatusDisplay: string;
+  isRegistrationOpen: boolean;
+  registrationCloseDate: string | null;
+  daysRemaining: number;
+  creditHoursSummary: CreditHoursSummary;
+  enrollments: Enrollment[];
+  cartItems: CartItem[];
+  notifications: RegistrationNotification[];
+}
+
+export interface Prerequisite {
+  courseId: number;
+  courseCode: string;
+  courseName: string;
+  completed: boolean;
+}
+
+export interface Schedule {
+  days: string[];
   startTime: string;
   endTime: string;
+  room: string;
 }
 
-export interface AvailableCourse {
-  courseInstanceId: number;
+export interface Section {
+  sectionId: number;
+  sectionName: string;
+  instructorId: number;
+  instructorName: string;
+  schedule: Schedule;
+  capacity: number;
+  enrolled: number;
+  availableSeats: number;
+  isFull: boolean;
+  waitlistAvailable: boolean;
+  currentWaitlistCount: number;
+}
+
+export interface CourseCatalogItem {
+  courseId: number;
   courseCode: string;
   courseName: string;
+  courseDescription: string;
+  departmentId: number;
+  departmentName: string;
   creditHours: number;
-  doctorName: string;
-  schedule: AvailableCourseScheduleSlot[];
-  maxCapacity: number;
-  currentEnrolled: number;
-  seatsRemaining: number;
-  enrollmentPercentage: number;
-  availabilityStatus: number;  // CourseAvailabilityStatus: 0=Open,1=AlmostFull,2=Full,3=WaitlistAvailable
-  isAlreadyRegistered: boolean;
-  hasPrerequisites: boolean;
-  prerequisitesMet: boolean;
-  unmetPrerequisites: string[];
+  level: number;
+  prerequisites: Prerequisite[];
+  sections: Section[];
 }
 
-export interface AvailableCoursesResponse {
-  courses: AvailableCourse[];
-}
-
-// ---- My Registered Courses (GET /api/student/registration/my-courses) ----
-
-export interface RegistrationRegisteredCourse {
-  enrollmentId: number;
-  courseInstanceId: number;
+export interface CartItem {
+  cartItemId: number;
+  courseId: number;
   courseCode: string;
   courseName: string;
+  sectionId: number;
+  sectionName: string;
+  instructorName: string;
+  schedule: Schedule;
   creditHours: number;
-  doctorName: string;
-  status: number;
-  enrollmentDate: string;
-  schedule: AvailableCourseScheduleSlot[];
+  addedAt: string;
+  willEnrollAs: string;
+  status: string;
+  waitlistPosition?: number;
 }
 
-export interface RegistrationRegisteredCoursesResponse {
-  totalCreditHours: number;
-  courses: RegistrationRegisteredCourse[];
+export interface CartSummary {
+  totalCourses: number;
+  totalCredits: number;
+  minRequiredCredits: number;
+  maxAllowedCredits: number;
+  meetsMinimum: boolean;
+  withinMaximum: boolean;
+  conflicts: any[];
 }
 
-// ---- Register for Course (POST /api/student/registration/register) ----
-
-export interface RegisterCourseRequest {
-  courseInstanceId: number;
+export interface CartData {
+  cartId: number;
+  items: CartItem[];
+  summary: CartSummary;
 }
 
-export interface RegisterCourseResponse {
+export interface AddToCartRequest {
+  courseId: number;
+  sectionId: number;
+}
+
+export interface Attendance {
+  // Attendance object shape if needed, otherwise 'any'
+  [key: string]: any;
+}
+
+export interface Enrollment {
   enrollmentId: number;
-  status: number;
-  message: string;
+  courseId: number;
+  courseCode: string;
+  courseName: string;
+  sectionId: number;
+  sectionName: string;
+  instructorName: string;
+  instructorEmail: string;
+  schedule: Schedule;
+  creditHours: number;
+  status: number; // EnrollmentStatus
+  statusDisplay: string;
+  enrolledAt: string;
+  dropDeadline: string | null;
+  canDrop: boolean;
+  isWaitlisted: boolean;
+  waitlistPosition: number | null;
+  grade: string | null;
+  attendance: Attendance | null;
 }
 
-// ---- Drop Course (DELETE /api/student/registration/drop/{enrollmentId}) ----
-
-export interface DropCourseResponse {
-  enrollmentId: number;
-  message: string;
+export interface EnrollmentsData {
+  semesterId: number;
+  semesterName: string;
+  totalCredits: number;
+  enrollments: Enrollment[];
+  statistics: {
+    totalEnrollments: number;
+    enrolledCount: number;
+    waitlistedCount: number;
+    totalCredits: number;
+    droppedCount: number;
+  };
 }
 
 // ---- My Courses (GET /api/student/courses) ----

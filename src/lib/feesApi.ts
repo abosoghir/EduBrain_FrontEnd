@@ -1,16 +1,18 @@
 // ============================================================
-// Finance (Fees) Management API Service
+// Admin - Fees Management API Service
 // ============================================================
 
 import { api } from '@/lib/api';
 import type { ApiResponse } from '@/lib/api';
 import type {
   PaginatedResponse,
-  FeesOverview,
-  StudentFeeItem,
-  StudentFeeFilterParams,
-  UpdatePaymentStatusForm,
-  UpdatePaymentStatusResponse,
+  FeesDashboard,
+  FeeInvoice,
+  Payment,
+  CreateInvoiceRequest,
+  RecordPaymentRequest,
+  WaiveFeeRequest,
+  RefundPaymentRequest,
 } from '@/types/admin';
 
 function buildQueryString(params: Record<string, unknown>): string {
@@ -38,58 +40,135 @@ function getErrorMessage(res: { data: unknown }): string {
   return 'Operation failed';
 }
 
-// GET /api/fees/overview
-export async function fetchFeesOverview(
-  semesterId?: number
-): Promise<{ data: FeesOverview | null; error?: string }> {
+// 1. GET /api/admin/fees/dashboard
+export async function getFeesDashboard(): Promise<{ data: FeesDashboard | null; error?: string }> {
   try {
-    const qs = semesterId ? `?semesterId=${semesterId}` : '';
-    const res = await api.get<ApiResponse<FeesOverview>>(`/api/fees/overview${qs}`);
+    const res = await api.get<ApiResponse<FeesDashboard>>(`/api/admin/fees/dashboard`);
     const data = unwrap(res);
     if (data) return { data };
     return { data: null, error: getErrorMessage(res) };
   } catch {
-    return { data: null, error: 'Failed to fetch fees overview' };
+    return { data: null, error: 'Failed to fetch fees dashboard' };
   }
 }
 
-// GET /api/fees
-export async function fetchStudentFees(
-  params: StudentFeeFilterParams = {}
-): Promise<{ data: PaginatedResponse<StudentFeeItem> | null; error?: string }> {
+// 2. GET /api/admin/fees/invoices
+export async function getInvoices(params: {
+  studentId?: number;
+  status?: number;
+  feeType?: number;
+  fromDate?: string;
+  toDate?: string;
+  page?: number;
+  pageSize?: number;
+}): Promise<{ data: PaginatedResponse<FeeInvoice> | null; error?: string }> {
   try {
-    const qs = buildQueryString({
-      studentId: params.studentId,
-      semesterId: params.semesterId,
-      status: params.status,
-      page: params.page ?? 1,
-      pageSize: params.pageSize ?? 20,
-    });
-    const res = await api.get<unknown>(`/api/fees${qs}`);
-    const raw = res.data as ApiResponse<PaginatedResponse<StudentFeeItem>>;
+    const qs = buildQueryString(params);
+    const res = await api.get<unknown>(`/api/admin/fees/invoices${qs}`);
+    const raw = res.data as ApiResponse<PaginatedResponse<FeeInvoice>>;
     if (raw && 'isSuccess' in raw && raw.isSuccess && raw.hasData && raw.data) {
-      const inner = raw.data as PaginatedResponse<StudentFeeItem>;
-      if (inner && Array.isArray(inner.items)) return { data: inner };
+      return { data: raw.data };
     }
-    const direct = res.data as unknown as PaginatedResponse<StudentFeeItem>;
+    const direct = res.data as unknown as PaginatedResponse<FeeInvoice>;
     if (direct && Array.isArray(direct.items)) return { data: direct };
     return { data: null, error: getErrorMessage(res) };
   } catch {
-    return { data: null, error: 'Failed to fetch student fees' };
+    return { data: null, error: 'Failed to fetch invoices' };
   }
 }
 
-// PUT /api/fees/{studentFeeId}/payment-status
-export async function updatePaymentStatus(
-  studentFeeId: number,
-  form: UpdatePaymentStatusForm
-): Promise<{ data: UpdatePaymentStatusResponse | null; error?: string }> {
+// 3. GET /api/admin/fees/invoices/{id}
+export async function getInvoiceDetails(invoiceId: number): Promise<{ data: FeeInvoice | null; error?: string }> {
   try {
-    const res = await api.put<ApiResponse<UpdatePaymentStatusResponse>>(`/api/fees/${studentFeeId}/payment-status`, form);
+    const res = await api.get<ApiResponse<FeeInvoice>>(`/api/admin/fees/invoices/${invoiceId}`);
     const data = unwrap(res);
     if (data) return { data };
     return { data: null, error: getErrorMessage(res) };
   } catch {
-    return { data: null, error: 'Failed to update payment status' };
+    return { data: null, error: 'Failed to fetch invoice details' };
+  }
+}
+
+// 4. POST /api/admin/fees/invoices
+export async function createInvoice(form: CreateInvoiceRequest): Promise<{ data: any; success: boolean; error?: string }> {
+  try {
+    const res = await api.post<ApiResponse<any>>(`/api/admin/fees/invoices`, form);
+    const d = res.data as ApiResponse<any>;
+    if (d?.isSuccess) return { data: d.data, success: true };
+    return { data: null, success: false, error: getErrorMessage(res) };
+  } catch {
+    return { data: null, success: false, error: 'Failed to create invoice' };
+  }
+}
+
+// 5. POST /api/admin/fees/invoices/{id}/payments
+export async function recordPayment(invoiceId: number, form: RecordPaymentRequest): Promise<{ data: any; success: boolean; error?: string }> {
+  try {
+    const res = await api.post<ApiResponse<any>>(`/api/admin/fees/invoices/${invoiceId}/payments`, form);
+    const d = res.data as ApiResponse<any>;
+    if (d?.isSuccess) return { data: d.data, success: true };
+    return { data: null, success: false, error: getErrorMessage(res) };
+  } catch {
+    return { data: null, success: false, error: 'Failed to record payment' };
+  }
+}
+
+// 6. PUT /api/admin/fees/invoices/{id}
+export async function updateInvoice(invoiceId: number, form: Partial<CreateInvoiceRequest>): Promise<{ data: any; success: boolean; error?: string }> {
+  try {
+    const res = await api.put<ApiResponse<any>>(`/api/admin/fees/invoices/${invoiceId}`, form);
+    const d = res.data as ApiResponse<any>;
+    if (d?.isSuccess) return { data: d.data, success: true };
+    return { data: null, success: false, error: getErrorMessage(res) };
+  } catch {
+    return { data: null, success: false, error: 'Failed to update invoice' };
+  }
+}
+
+// 7. POST /api/admin/fees/invoices/{id}/waive
+export async function waiveInvoice(invoiceId: number, form: WaiveFeeRequest): Promise<{ data: any; success: boolean; error?: string }> {
+  try {
+    const res = await api.post<ApiResponse<any>>(`/api/admin/fees/invoices/${invoiceId}/waive`, form);
+    const d = res.data as ApiResponse<any>;
+    if (d?.isSuccess) return { data: d.data, success: true };
+    return { data: null, success: false, error: getErrorMessage(res) };
+  } catch {
+    return { data: null, success: false, error: 'Failed to waive fees' };
+  }
+}
+
+// 8. POST /api/admin/fees/payments/{id}/refund
+export async function processRefund(paymentId: number, form: RefundPaymentRequest): Promise<{ data: any; success: boolean; error?: string }> {
+  try {
+    const res = await api.post<ApiResponse<any>>(`/api/admin/fees/payments/${paymentId}/refund`, form);
+    const d = res.data as ApiResponse<any>;
+    if (d?.isSuccess) return { data: d.data, success: true };
+    return { data: null, success: false, error: getErrorMessage(res) };
+  } catch {
+    return { data: null, success: false, error: 'Failed to process refund' };
+  }
+}
+
+// 9. GET /api/admin/fees/payments
+export async function getPayments(params: {
+  studentId?: number;
+  fromDate?: string;
+  toDate?: string;
+  paymentMethod?: number;
+  page?: number;
+  pageSize?: number;
+}): Promise<{ data: PaginatedResponse<Payment> | null; error?: string }> {
+  try {
+    const qs = buildQueryString(params);
+    const res = await api.get<unknown>(`/api/admin/fees/payments${qs}`);
+    const raw = res.data as ApiResponse<PaginatedResponse<Payment>>;
+    if (raw && 'isSuccess' in raw && raw.isSuccess && raw.hasData && raw.data) {
+      return { data: raw.data };
+    }
+    const direct = res.data as unknown as PaginatedResponse<Payment>;
+    if (direct && Array.isArray(direct.items)) return { data: direct };
+    return { data: null, error: getErrorMessage(res) };
+  } catch {
+    return { data: null, error: 'Failed to fetch payments' };
   }
 }

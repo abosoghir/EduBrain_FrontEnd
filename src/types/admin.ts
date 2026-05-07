@@ -165,6 +165,7 @@ export interface UpdateSemesterForm {
 
 export interface RegistrationSettings {
   semesterId: number;
+  windowId?: number;
   semesterName: string;
   status: number;                       // 0=Open, 1=Closed
   statusDisplay: string;
@@ -1279,86 +1280,114 @@ export interface SendNotificationResponse {
 // FINANCE MANAGEMENT (FEES)
 // ============================================================
 
-export interface FeeStatusDistribution {
-  status: string;
-  count: number;
-  amount: number;
-  color: string;
+export interface SemesterBreakdown {
+  totalTuition: number;
+  totalAdministrative: number;
+  totalServices: number;
+  totalFines: number;
 }
 
-export interface FeeDepartmentBreakdown {
-  departmentId: number;
-  departmentName: string;
-  totalBilled: number;
+export interface FeesDashboard {
+  totalOutstanding: number;
   totalCollected: number;
-  studentCount: number;
+  pendingInvoices: number;
+  paidInvoices: number;
+  overdueInvoices: number;
+  recentTransactions: number;
+  monthlyCollection: number;
+  semesterBreakdown: SemesterBreakdown;
 }
 
-export interface FeeRecentPayment {
-  studentFeeId: number;
-  studentName: string;
+export interface FeeItem {
+  feeItemId: number;
+  feeType: number; // FeeType enum
+  feeTypeDisplay: string;
+  description: string;
   amount: number;
+  waivedAmount: number;
+}
+
+export interface Payment {
+  paymentId: number;
+  invoiceId: number;
+  invoiceNumber?: string;
+  studentId?: number;
+  studentName?: string;
+  amount: number;
+  paymentMethod: number; // PaymentMethod enum
+  paymentMethodDisplay: string;
+  transactionReference: string;
   paymentDate: string;
-  method: number;
-  methodDisplay: string;
+  receivedBy: string;
+  isRefunded: boolean;
+  refundedAmount: number;
 }
 
-export interface FeesOverview {
-  totalBilled: number;
-  totalCollected: number;
-  pendingPayments: number;
-  overdueAmount: number;
-  collectionRate: number;
-  statusDistribution: FeeStatusDistribution[];
-  departmentBreakdown: FeeDepartmentBreakdown[];
-  recentPayments: FeeRecentPayment[];
-}
-
-export interface StudentFeeItem {
-  studentFeeId: number;
+export interface FeeInvoice {
+  invoiceId: number;
+  invoiceNumber: string;
   studentId: number;
   studentCode: string;
   studentName: string;
-  studentEmail: string;
-  departmentName: string;
-  yearLevel: number;
   semesterId: number;
   semesterName: string;
-  tuitionFees: number;
-  booksFees: number;
-  discount: number;
   totalAmount: number;
   paidAmount: number;
   remainingAmount: number;
-  status: number;
+  status: number; // FeeStatus enum
   statusDisplay: string;
-  statusColor: string;
-  paymentMethod: number;
-  paymentMethodDisplay: string;
+  dueDate: string;
   createdAt: string;
-  updatedAt: string;
+  itemsCount?: number;
+  items?: FeeItem[];
+  payments?: Payment[];
+  notes?: string;
+  student?: {
+    id: number;
+    code: string;
+    name: string;
+    email: string;
+    phone: string;
+    departmentName: string;
+  };
+  semester?: {
+    id: number;
+    name: string;
+  };
 }
 
-export interface StudentFeeFilterParams {
-  studentId?: number;
-  semesterId?: number;
-  status?: number;
-  page?: number;
-  pageSize?: number;
-}
-
-export interface UpdatePaymentStatusForm {
-  studentFeeId: number;
-  status: number;
-  paymentMethod: number;
+export interface CreateInvoiceRequest {
+  studentId: number;
+  semesterId: number;
+  dueDate: string;
+  items: FeeItemRequest[];
   notes?: string;
 }
 
-export interface UpdatePaymentStatusResponse {
-  studentFeeId: number;
-  studentName: string;
-  newStatus: number;
+export interface FeeItemRequest {
+  feeItemId?: number; // Needed for update
+  feeType: number;
+  description: string;
+  amount: number;
+}
+
+export interface RecordPaymentRequest {
+  amount: number;
   paymentMethod: number;
-  totalAmount: number;
-  updatedAt: string;
+  transactionReference?: string;
+  paymentDate: string;
+  notes?: string;
+}
+
+export interface WaiveFeeRequest {
+  amount: number;
+  reason: string;
+  notes?: string;
+}
+
+export interface RefundPaymentRequest {
+  amount: number;
+  reason: string;
+  refundMethod: number; // PaymentMethod
+  notes?: string;
 }

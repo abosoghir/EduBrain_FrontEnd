@@ -22,10 +22,11 @@ export enum SemesterNumber {
 
 export enum EnrollmentStatus {
   Enrolled = 0,
-  Waitlisted = 1,
-  Dropped = 2,
-  Completed = 3,
-  Failed = 4,
+  Dropped = 1,
+  Withdrawn = 2,
+  Failed = 3,
+  Waitlisted = 4,
+  Pending = 5,
 }
 
 export enum DoctorTitle {
@@ -74,17 +75,29 @@ export enum ExamType {
   Oral = 3,
 }
 
-export enum PaymentStatus {
-  Paid = 0,
+export enum FeeStatus {
+  Pending = 0,
   PartiallyPaid = 1,
-  Unpaid = 2,
+  Paid = 2,
+  Overdue = 3,
+  Waived = 4,
+  Refunded = 5,
+}
+
+export enum FeeType {
+  Tuition = 0,
+  Administrative = 1,
+  Services = 2,
+  Fines = 3,
+  Deposit = 4,
 }
 
 export enum PaymentMethod {
-  Cash = 0,
-  Card = 1,
-  Online = 2,
-  BankTransfer = 3,
+  BankTransfer = 0,
+  Cash = 1,
+  CreditCard = 2,
+  Check = 3,
+  Scholarship = 4,
 }
 
 export enum DayOfWeek {
@@ -211,10 +224,11 @@ export const SEMESTER_NUMBER_LABELS: Record<SemesterNumber, string> = {
 
 export const ENROLLMENT_STATUS_LABELS: Record<EnrollmentStatus, string> = {
   [EnrollmentStatus.Enrolled]: 'Enrolled',
-  [EnrollmentStatus.Waitlisted]: 'Waitlisted',
   [EnrollmentStatus.Dropped]: 'Dropped',
-  [EnrollmentStatus.Completed]: 'Completed',
+  [EnrollmentStatus.Withdrawn]: 'Withdrawn',
   [EnrollmentStatus.Failed]: 'Failed',
+  [EnrollmentStatus.Waitlisted]: 'Waitlisted',
+  [EnrollmentStatus.Pending]: 'Pending',
 };
 
 export const ROOM_TYPE_LABELS: Record<RoomType, string> = {
@@ -237,17 +251,29 @@ export const EXAM_TYPE_LABELS: Record<ExamType, string> = {
   [ExamType.Oral]: 'Oral',
 };
 
-export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
-  [PaymentStatus.Paid]: 'Paid',
-  [PaymentStatus.PartiallyPaid]: 'Partially Paid',
-  [PaymentStatus.Unpaid]: 'Unpaid',
+export const FEE_STATUS_LABELS: Record<FeeStatus, string> = {
+  [FeeStatus.Pending]: 'Pending',
+  [FeeStatus.PartiallyPaid]: 'Partially Paid',
+  [FeeStatus.Paid]: 'Paid',
+  [FeeStatus.Overdue]: 'Overdue',
+  [FeeStatus.Waived]: 'Waived',
+  [FeeStatus.Refunded]: 'Refunded',
+};
+
+export const FEE_TYPE_LABELS: Record<FeeType, string> = {
+  [FeeType.Tuition]: 'Tuition',
+  [FeeType.Administrative]: 'Administrative',
+  [FeeType.Services]: 'Services',
+  [FeeType.Fines]: 'Fines',
+  [FeeType.Deposit]: 'Deposit',
 };
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  [PaymentMethod.Cash]: 'Cash',
-  [PaymentMethod.Card]: 'Card',
-  [PaymentMethod.Online]: 'Online',
   [PaymentMethod.BankTransfer]: 'Bank Transfer',
+  [PaymentMethod.Cash]: 'Cash',
+  [PaymentMethod.CreditCard]: 'Credit Card',
+  [PaymentMethod.Check]: 'Check',
+  [PaymentMethod.Scholarship]: 'Scholarship',
 };
 
 export const DAY_OF_WEEK_LABELS: Record<DayOfWeek, string> = {
