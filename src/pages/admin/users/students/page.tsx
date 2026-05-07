@@ -82,8 +82,8 @@ export default function AdminStudents() {
     setSubmitting(true);
     const res = await createStudent(form);
     setSubmitting(false);
-    if (res.data) {
-      setToast(`Student created! Code: ${res.data.studentCode}, Temp Password: ${res.data.temporaryPassword}`);
+    if (res.success) {
+      setToast('Student created successfully');
       setShowCreate(false);
       loadData();
     } else {
@@ -168,7 +168,7 @@ export default function AdminStudents() {
         </select>
         <select value={deptFilter} onChange={(e) => onFilterChange(setDeptFilter, e.target.value)} className={selectCls}>
           <option value="">All Departments</option>
-          {departments.map(d => <option key={d.id} value={d.id}>{d.description}</option>)}
+          {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
         <select value={statusFilter} onChange={(e) => onFilterChange(setStatusFilter, e.target.value)} className={selectCls}>
           {ENROLLMENT_STATUS_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}

@@ -10,7 +10,6 @@ import type {
   AdvisorListParams,
   AdvisorDetail,
   CreateAdvisorForm,
-  CreateAdvisorResponse,
   UpdateAdvisorForm,
   RoomOption,
 } from '@/types/admin';
@@ -32,6 +31,15 @@ function unwrap<T>(res: { data: ApiResponse<T> | T }): T | null {
     return null;
   }
   return res.data as T;
+}
+
+function isSuccess(res: { data: unknown }): boolean {
+  const d = res.data as ApiResponse<unknown>;
+  if (d && typeof d === 'object') {
+    if ('isSuccess' in d) return !!d.isSuccess;
+    if ('success' in d) return !!(d as { success?: boolean }).success;
+  }
+  return false;
 }
 
 function getErrorMessage(res: { data: unknown }): string {
@@ -75,16 +83,13 @@ export async function fetchAdvisorDetail(
 
 export async function createAdvisor(
   form: CreateAdvisorForm
-): Promise<{ data: CreateAdvisorResponse | null; error?: string }> {
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await api.post<ApiResponse<CreateAdvisorResponse>>('/api/admin/users/advisors', form);
-    const raw = res.data as unknown as { success?: boolean; data?: CreateAdvisorResponse; message?: string };
-    if (raw?.success && raw.data) return { data: raw.data };
-    const d = res.data as ApiResponse<CreateAdvisorResponse>;
-    if (d?.isSuccess && d?.hasData && d.data) return { data: d.data };
-    return { data: null, error: getErrorMessage(res) };
+    const res = await api.post<unknown>('/api/admin/users/advisors', form);
+    if (isSuccess(res)) return { success: true };
+    return { success: false, error: getErrorMessage(res) };
   } catch {
-    return { data: null, error: 'Failed to create advisor' };
+    return { success: false, error: 'Failed to create advisor' };
   }
 }
 

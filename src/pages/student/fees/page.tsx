@@ -5,8 +5,8 @@ import { PAYMENT_METHOD_LABELS } from '@/lib/enums';
 
 const PAYMENT_STATUS: Record<number, { label: string; color: string }> = {
   0: { label: 'Paid', color: 'bg-emerald-50 text-emerald-600' },
-  1: { label: 'Unpaid', color: 'bg-red-50 text-red-600' },
-  2: { label: 'Partially Paid', color: 'bg-amber-50 text-amber-600' },
+  1: { label: 'Partially Paid', color: 'bg-amber-50 text-amber-600' },
+  2: { label: 'Unpaid', color: 'bg-red-50 text-red-600' },
 };
 
 const FEE_ITEM_STATUS: Record<number, { label: string; color: string; icon: string }> = {

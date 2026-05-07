@@ -9,7 +9,7 @@ import type {
   CourseDetail,
   CreateCourseForm,
   UpdateCourseForm,
-  CreateCourseInstanceForm,
+  CreateCourseInstanceForCourseForm,
   DepartmentOption,
 } from '@/types/admin';
 
@@ -141,7 +141,7 @@ export async function removePrerequisite(
 
 export async function createCourseInstance(
   courseId: number,
-  form: CreateCourseInstanceForm
+  form: CreateCourseInstanceForCourseForm
 ): Promise<{ id: number | null; error?: string }> {
   try {
     const res = await api.post<unknown>(`/api/admin/courses/${courseId}/instances`, form);

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fetchStudentDashboard } from '@/lib/studentPortalApi';
 import type { StudentDashboardData } from '@/types/student';
-import { SCHEDULE_TYPE_LABELS, EXAM_TYPE_LABELS } from '@/lib/enums';
+import { SCHEDULE_TYPE_LABELS, EXAM_TYPE_LABELS, YEAR_LEVEL_LABELS } from '@/lib/enums';
 
 export default function StudentDashboard() {
   const navigate = useNavigate();
@@ -26,7 +26,7 @@ export default function StudentDashboard() {
           Welcome back, {data?.studentName || 'Student'}!
         </h1>
         <p className="text-sm text-slate-500">
-          {data?.academicYear || '—'} · {data?.yearLevelDisplay || '—'}
+          {data?.academicYear || '—'} · {data?.yearLevel !== undefined ? YEAR_LEVEL_LABELS[data.yearLevel as 0 | 1 | 2 | 3] : '—'}
         </p>
       </div>
 

@@ -1,27 +1,19 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { fetchDoctorAnnouncements, createAnnouncement, fetchDoctorCourses } from '@/lib/doctorPortalApi';
-import type { DoctorAnnouncement, CreateAnnouncementRequest, DoctorCourse } from '@/types/doctor';
-import { NOTIFICATION_TYPE_LABELS } from '@/lib/enums';
-
-// NotificationType options valid for doctor
-const ANNOUNCEMENT_TYPES = [
-  { id: 0, label: 'Lecture Cancelled' },
-  { id: 1, label: 'Exam Reminder' },
-  { id: 3, label: 'General Announcement' },
-  { id: 8, label: 'Quiz Added' },
-  { id: 9, label: 'Schedule Changed' },
-];
+import type { DoctorAnnouncement, DoctorAnnouncementsPaginatedList, CreateAnnouncementRequest, DoctorCourse } from '@/types/doctor';
+import { NOTIFICATION_TYPE_LABELS, NotificationType } from '@/lib/enums';
 
 // AnnouncementTarget: 0=AllMyStudents, 1=SpecificCourse, 2=SpecificStudents
 const TARGET_OPTIONS = [
   { id: 0, label: 'All My Students', icon: 'ri-team-line' },
   { id: 1, label: 'Specific Course', icon: 'ri-book-line' },
+  { id: 2, label: 'Specific Students', icon: 'ri-user-line' },
 ];
 
 const EMPTY_FORM: CreateAnnouncementRequest = {
   title: '',
   message: '',
-  type: 3,
+  type: NotificationType.GeneralAnnouncement,
   target: 0,
   courseInstanceId: null,
   studentIds: null,
@@ -32,17 +24,17 @@ const EMPTY_FORM: CreateAnnouncementRequest = {
 
 function typeBadge(type: number): string {
   const map: Record<number, string> = {
-    0: 'bg-red-50 text-red-600',
-    1: 'bg-blue-50 text-blue-600',
-    3: 'bg-violet-50 text-violet-600',
-    8: 'bg-amber-50 text-amber-600',
-    9: 'bg-emerald-50 text-emerald-600',
+    0: 'bg-red-50 text-red-600', 1: 'bg-blue-50 text-blue-600', 2: 'bg-orange-50 text-orange-600',
+    3: 'bg-violet-50 text-violet-600', 4: 'bg-rose-50 text-rose-600', 5: 'bg-teal-50 text-teal-600',
+    6: 'bg-gray-50 text-gray-600', 7: 'bg-emerald-50 text-emerald-600', 8: 'bg-amber-50 text-amber-600',
+    9: 'bg-cyan-50 text-cyan-600',
   };
   return map[type] ?? 'bg-gray-50 text-gray-600';
 }
 
 export default function DoctorAnnouncements() {
   const [announcements, setAnnouncements] = useState<DoctorAnnouncement[]>([]);
+  const [pagination, setPagination] = useState<Omit<DoctorAnnouncementsPaginatedList, 'items'>>({ pageNumber: 1, totalPages: 0, totalCount: 0, hasPreviousPage: false, hasNextPage: false });
   const [sentToday, setSentToday] = useState(0);
   const [courses, setCourses] = useState<DoctorCourse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -50,19 +42,29 @@ export default function DoctorAnnouncements() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [form, setForm] = useState<CreateAnnouncementRequest>(EMPTY_FORM);
+  const [typeFilter, setTypeFilter] = useState<number | undefined>(undefined);
 
-  useEffect(() => {
-    fetchDoctorAnnouncements().then(({ data }) => {
-      if (data) {
-        setAnnouncements(data.items);
-        setSentToday(data.sentToday);
-      }
-    }).finally(() => setLoading(false));
+  const loadAnnouncements = useCallback(async (page = 1) => {
+    setLoading(true);
+    const { data } = await fetchDoctorAnnouncements({ type: typeFilter, page, pageSize: 20 });
+    if (data) {
+      setAnnouncements(data.announcements.items);
+      setPagination({
+        pageNumber: data.announcements.pageNumber,
+        totalPages: data.announcements.totalPages,
+        totalCount: data.announcements.totalCount,
+        hasPreviousPage: data.announcements.hasPreviousPage,
+        hasNextPage: data.announcements.hasNextPage,
+      });
+      setSentToday(data.totalSentToday);
+    } else {
+      setAnnouncements([]);
+    }
+    setLoading(false);
+  }, [typeFilter]);
 
-    fetchDoctorCourses().then(({ data }) => {
-      if (data) setCourses(data.courses);
-    });
-  }, []);
+  useEffect(() => { loadAnnouncements(1); }, [loadAnnouncements]);
+  useEffect(() => { fetchDoctorCourses().then(({ data }) => { if (data) setCourses(data.courses); }); }, []);
 
   const handleCreate = useCallback(async () => {
     if (!form.title.trim() || !form.message.trim()) {
@@ -73,13 +75,15 @@ export default function DoctorAnnouncements() {
       setMessage({ type: 'error', text: 'Please select a course.' });
       return;
     }
+    if (form.target === 2 && (!form.studentIds || form.studentIds.length === 0)) {
+      setMessage({ type: 'error', text: 'Please enter at least one student ID.' });
+      return;
+    }
     setSaving(true);
     setMessage(null);
     const { data, error } = await createAnnouncement(form);
     if (data) {
-      // Reload announcements
-      const { data: refreshed } = await fetchDoctorAnnouncements();
-      if (refreshed) { setAnnouncements(refreshed.items); setSentToday(refreshed.sentToday); }
+      await loadAnnouncements(1);
       setForm(EMPTY_FORM);
       setShowForm(false);
       setMessage({ type: 'success', text: `Announcement sent to ${data.recipientsCount} students!` });
@@ -87,14 +91,16 @@ export default function DoctorAnnouncements() {
       setMessage({ type: 'error', text: error ?? 'Failed to send announcement.' });
     }
     setSaving(false);
-  }, [form]);
+  }, [form, loadAnnouncements]);
+
+  const fmtDate = (d: string) => { try { return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }); } catch { return d; } };
 
   return (
     <div>
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-xl font-bold text-slate-800">Announcements</h1>
-          <p className="text-xs text-slate-400 mt-0.5">Sent today: {sentToday}</p>
+          <p className="text-xs text-slate-400 mt-0.5">Sent today: {sentToday} · Total: {pagination.totalCount}</p>
         </div>
         <button
           type="button"
@@ -108,8 +114,7 @@ export default function DoctorAnnouncements() {
 
       {/* Message banner */}
       {message && (
-        <div className={`mb-4 p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'
-          }`}>
+        <div className={`mb-4 p-3 rounded-lg text-sm ${message.type === 'success' ? 'bg-emerald-50 text-emerald-700 border border-emerald-100' : 'bg-red-50 text-red-600 border border-red-100'}`}>
           {message.text}
         </div>
       )}
@@ -131,37 +136,31 @@ export default function DoctorAnnouncements() {
                 className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
                 placeholder="Announcement title..."
               />
+              <p className="text-[10px] text-slate-400 mt-1 text-right">{form.title.length}/200</p>
             </div>
 
             {/* Type */}
             <div>
-              <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1.5">Type</label>
-              <div className="flex gap-2 flex-wrap">
-                {ANNOUNCEMENT_TYPES.map((t) => (
-                  <button
-                    key={t.id}
-                    type="button"
-                    onClick={() => setForm({ ...form, type: t.id })}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${form.type === t.id ? 'bg-violet-600 text-white' : 'bg-gray-50 text-slate-600 hover:bg-gray-100'
-                      }`}
-                  >
-                    {t.label}
-                  </button>
-                ))}
-              </div>
+              <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1.5">Type *</label>
+              <select
+                value={form.type}
+                onChange={(e) => setForm({ ...form, type: Number(e.target.value) })}
+                className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
+              >
+                {Object.entries(NOTIFICATION_TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
+              </select>
             </div>
 
             {/* Target */}
             <div>
-              <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1.5">Target Audience</label>
+              <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1.5">Target Audience *</label>
               <div className="flex gap-2">
                 {TARGET_OPTIONS.map((t) => (
                   <button
                     key={t.id}
                     type="button"
-                    onClick={() => setForm({ ...form, target: t.id, courseInstanceId: null })}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${form.target === t.id ? 'bg-violet-600 text-white' : 'bg-gray-50 text-slate-600 hover:bg-gray-100'
-                      }`}
+                    onClick={() => setForm({ ...form, target: t.id, courseInstanceId: t.id !== 1 ? null : form.courseInstanceId, studentIds: t.id !== 2 ? null : form.studentIds })}
+                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${form.target === t.id ? 'bg-violet-600 text-white' : 'bg-gray-50 text-slate-600 hover:bg-gray-100'}`}
                   >
                     <i className={t.icon} />
                     {t.label}
@@ -170,7 +169,7 @@ export default function DoctorAnnouncements() {
               </div>
             </div>
 
-            {/* Course selector — shown only when target = SpecificCourse */}
+            {/* Course selector — target = SpecificCourse */}
             {form.target === 1 && (
               <div>
                 <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1.5">Select Course *</label>
@@ -186,11 +185,20 @@ export default function DoctorAnnouncements() {
                     </option>
                   ))}
                 </select>
-                {form.courseInstanceId && (
-                  <p className="text-[10px] text-slate-400 mt-1">
-                    This will be sent to all students in the selected course.
-                  </p>
-                )}
+              </div>
+            )}
+
+            {/* Student IDs — target = SpecificStudents */}
+            {form.target === 2 && (
+              <div>
+                <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1.5">Student IDs * (comma-separated)</label>
+                <input
+                  type="text"
+                  value={(form.studentIds ?? []).join(', ')}
+                  onChange={(e) => setForm({ ...form, studentIds: e.target.value.split(',').map(s => Number(s.trim())).filter(n => n > 0) })}
+                  className="w-full px-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 focus:border-violet-400"
+                  placeholder="e.g. 5001, 5002, 5003"
+                />
               </div>
             )}
 
@@ -248,6 +256,14 @@ export default function DoctorAnnouncements() {
         </div>
       )}
 
+      {/* Type filter */}
+      <div className="flex items-center gap-2 mb-4 flex-wrap">
+        <button type="button" onClick={() => setTypeFilter(undefined)} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${typeFilter === undefined ? 'bg-violet-600 text-white' : 'bg-gray-50 text-slate-600 hover:bg-gray-100'}`}>All</button>
+        {Object.entries(NOTIFICATION_TYPE_LABELS).map(([k, v]) => (
+          <button key={k} type="button" onClick={() => setTypeFilter(Number(k))} className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${typeFilter === Number(k) ? 'bg-violet-600 text-white' : 'bg-gray-50 text-slate-600 hover:bg-gray-100'}`}>{v}</button>
+        ))}
+      </div>
+
       {/* List */}
       {loading && (
         <div className="flex items-center gap-2 text-slate-400 text-sm mb-6">
@@ -258,7 +274,7 @@ export default function DoctorAnnouncements() {
 
       <div className="space-y-3">
         {announcements.map((a) => (
-          <div key={a.id} className="bg-white rounded-xl border border-gray-100 p-5">
+          <div key={a.notificationId} className="bg-white rounded-xl border border-gray-100 p-5">
             <div className="flex items-start gap-3">
               <div className={`w-10 h-10 rounded-lg flex items-center justify-center shrink-0 ${typeBadge(a.type)}`}>
                 <i className="ri-megaphone-line text-sm" />
@@ -267,22 +283,27 @@ export default function DoctorAnnouncements() {
                 <div className="flex items-center gap-2 mb-1">
                   <h3 className="text-sm font-semibold text-slate-800">{a.title}</h3>
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${typeBadge(a.type)}`}>
-                    {a.typeDisplay || NOTIFICATION_TYPE_LABELS[a.type as 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9]}
+                    {NOTIFICATION_TYPE_LABELS[a.type as NotificationType] || `Type ${a.type}`}
                   </span>
                 </div>
-                <div className="flex items-center gap-3 text-[10px] text-slate-400">
+                {a.messagePreview && (
+                  <p className="text-xs text-slate-500 mb-2 line-clamp-2">{a.messagePreview}</p>
+                )}
+                <div className="flex items-center gap-3 text-[10px] text-slate-400 flex-wrap">
                   <span className="flex items-center gap-1">
                     <i className="ri-calendar-line" />
-                    {new Date(a.sentDate).toLocaleDateString()}
-                  </span>
-                  <span className="flex items-center gap-1">
-                    <i className="ri-focus-line" />
-                    {a.target}
+                    {fmtDate(a.sentDate)}
                   </span>
                   <span className="flex items-center gap-1">
                     <i className="ri-user-line" />
                     {a.recipientsCount} recipients
                   </span>
+                  {a.targetCourseNames.length > 0 && (
+                    <span className="flex items-center gap-1">
+                      <i className="ri-book-line" />
+                      {a.targetCourseNames.join(', ')}
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
@@ -296,6 +317,17 @@ export default function DoctorAnnouncements() {
             <i className="ri-megaphone-line text-3xl text-slate-400" />
           </div>
           <p className="text-sm text-slate-500">No announcements yet.</p>
+        </div>
+      )}
+
+      {/* Pagination */}
+      {pagination.totalPages > 1 && (
+        <div className="flex items-center justify-between mt-4 text-sm text-slate-600">
+          <span>Page {pagination.pageNumber} of {pagination.totalPages} ({pagination.totalCount} total)</span>
+          <div className="flex gap-2">
+            <button type="button" disabled={!pagination.hasPreviousPage} onClick={() => loadAnnouncements(pagination.pageNumber - 1)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs hover:bg-gray-50 disabled:opacity-40">Previous</button>
+            <button type="button" disabled={!pagination.hasNextPage} onClick={() => loadAnnouncements(pagination.pageNumber + 1)} className="px-3 py-1.5 rounded-lg border border-gray-200 text-xs hover:bg-gray-50 disabled:opacity-40">Next</button>
+          </div>
         </div>
       )}
     </div>

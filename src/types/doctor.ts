@@ -55,9 +55,10 @@ export interface DoctorCourseStudent {
   studentId: number;
   studentCode: string;
   studentName: string;
+  profilePictureUrl: string | null;
   section: string;
   attendancePercentage: number;
-  status: string;            // "Enrolled" | "Waitlisted"
+  status: number;            // EnrollmentStatus: 0=Enrolled, 1=Waitlisted, 2=Dropped, 3=Completed, 4=Failed
 }
 
 export interface DoctorCourseStudentsResponse {
@@ -140,15 +141,16 @@ export interface DoctorAttendanceStudent {
   studentId: number;
   studentCode: string;
   studentName: string;
-  status: number;            // AttendanceStatus: 0=Present, 1=Absent, 2=Late
+  profilePictureUrl: string | null;
+  currentStatus: number | null;  // AttendanceStatus: 0=Present, 1=Absent, 2=Late; null = not marked
 }
 
 export interface DoctorAttendanceSession {
   courseInstanceId: number;
   courseName: string;
-  date: string;
+  selectedDate: string;
   weekNumber: number;
-  isAttendanceTaken: boolean;
+  attendanceAlreadyTaken: boolean;
   students: DoctorAttendanceStudent[];
 }
 
@@ -229,22 +231,27 @@ export interface SubmitGradesRequest {
 // ---- Announcements (GET /api/doctor/announcements) ----
 
 export interface DoctorAnnouncement {
-  id: number;
+  notificationId: number;
   title: string;
+  messagePreview: string;
   type: number;              // NotificationType enum
-  typeDisplay: string;
-  target: string;
-  recipientsCount: number;
   sentDate: string;
+  recipientsCount: number;
+  targetCourseNames: string[];
+}
+
+export interface DoctorAnnouncementsPaginatedList {
+  items: DoctorAnnouncement[];
+  pageNumber: number;
+  totalPages: number;
+  totalCount: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }
 
 export interface DoctorAnnouncementsResponse {
-  items: DoctorAnnouncement[];
-  page: number;
-  pageSize: number;
-  totalCount: number;
-  totalPages: number;
-  sentToday: number;
+  announcements: DoctorAnnouncementsPaginatedList;
+  totalSentToday: number;
 }
 
 // POST /api/doctor/announcements
@@ -261,9 +268,9 @@ export interface CreateAnnouncementRequest {
 }
 
 export interface CreateAnnouncementResponse {
-  announcementId: number;
+  notificationId: number;
   recipientsCount: number;
-  sentDate: string;
+  sentAt: string;
 }
 
 // ---- Profile (GET /api/doctor/profile) ----

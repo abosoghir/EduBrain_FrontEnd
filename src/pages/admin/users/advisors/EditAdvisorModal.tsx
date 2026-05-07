@@ -11,7 +11,6 @@ interface Props {
 
 export default function EditAdvisorModal({ advisor, onSubmit, onClose, submitting }: Props) {
   const [form, setForm] = useState<UpdateAdvisorForm>({
-    advisorId: advisor.id,
     name: advisor.fullName,
     phoneNumber: advisor.phoneNumber || '',
     officeRoomId: advisor.officeRoomId ?? undefined,

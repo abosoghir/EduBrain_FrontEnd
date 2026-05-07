@@ -8,7 +8,7 @@ interface Props {
   submitting: boolean;
 }
 
-const EMPTY: CreateAdvisorForm = { fullName: '', email: '', phoneNumber: '', password: '' };
+const EMPTY: CreateAdvisorForm = { email: '', name: '', phoneNumber: '', nationalId: '' };
 
 const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400';
 const labelCls = 'block text-xs font-medium text-slate-600 mb-1';
@@ -21,7 +21,7 @@ export default function CreateAdvisorModal({ onSubmit, onClose, submitting }: Pr
 
   const sf = (field: keyof CreateAdvisorForm, value: unknown) => setForm(p => ({ ...p, [field]: value }));
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSubmit(form); };
-  const isValid = !!(form.fullName && form.email && form.password);
+  const isValid = !!(form.name && form.email && form.phoneNumber && form.nationalId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
@@ -35,8 +35,8 @@ export default function CreateAdvisorModal({ onSubmit, onClose, submitting }: Pr
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Full Name *</label>
-              <input type="text" required value={form.fullName} onChange={e => sf('fullName', e.target.value)} className={inputCls} />
+              <label className={labelCls}>Name *</label>
+              <input type="text" required value={form.name} onChange={e => sf('name', e.target.value)} className={inputCls} />
             </div>
             <div>
               <label className={labelCls}>Email *</label>
@@ -45,20 +45,20 @@ export default function CreateAdvisorModal({ onSubmit, onClose, submitting }: Pr
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Phone Number</label>
-              <input type="text" value={form.phoneNumber ?? ''} onChange={e => sf('phoneNumber', e.target.value)} className={inputCls} />
+              <label className={labelCls}>Phone Number *</label>
+              <input type="text" required value={form.phoneNumber} onChange={e => sf('phoneNumber', e.target.value)} className={inputCls} placeholder="+201011122233" />
             </div>
             <div>
-              <label className={labelCls}>Office Room</label>
-              <select value={form.officeRoomId ?? ''} onChange={e => sf('officeRoomId', e.target.value ? Number(e.target.value) : undefined)} className={inputCls}>
-                <option value="">— Select —</option>
-                {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
+              <label className={labelCls}>National ID *</label>
+              <input type="text" required value={form.nationalId} onChange={e => sf('nationalId', e.target.value)} className={inputCls} />
             </div>
           </div>
           <div>
-            <label className={labelCls}>Password *</label>
-            <input type="password" required value={form.password} onChange={e => sf('password', e.target.value)} className={inputCls} placeholder="Temporary password" />
+            <label className={labelCls}>Office Room</label>
+            <select value={form.officeRoomId ?? ''} onChange={e => sf('officeRoomId', e.target.value ? Number(e.target.value) : undefined)} className={inputCls}>
+              <option value="">— Select —</option>
+              {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
           </div>
           <div className="flex items-center justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-gray-50 transition-colors">Cancel</button>

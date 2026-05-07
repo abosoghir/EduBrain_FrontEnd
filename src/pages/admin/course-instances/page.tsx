@@ -1,11 +1,11 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import {
-  fetchCourseInstances, createCourseInstance, updateCourseInstance, deleteCourseInstance,
+  fetchCourseInstances, createCourseInstance, deleteCourseInstance,
   fetchSemesterOptions, fetchDepartmentOptions, fetchDoctorOptions, fetchCourseOptions,
 } from '@/lib/adminApi';
 import type {
   CourseInstanceListItem, CourseInstanceListParams,
-  CreateCourseInstanceForm, UpdateCourseInstanceForm,
+  CreateCourseInstanceForm,
   SemesterOption, DepartmentOption, DoctorOption, CourseOption,
   PaginatedResponse,
 } from '@/types/admin';
@@ -33,10 +33,8 @@ export default function AdminCourseInstances() {
   const [courses, setCourses] = useState<CourseOption[]>([]);
 
   const [showCreate, setShowCreate] = useState(false);
-  const [editItem, setEditItem] = useState<CourseInstanceListItem | null>(null);
   const [deleteId, setDeleteId] = useState<number | null>(null);
   const [createForm, setCreateForm] = useState<CreateCourseInstanceForm>(EMPTY_CREATE);
-  const [editForm, setEditForm] = useState<UpdateCourseInstanceForm>({});
   const [submitting, setSubmitting] = useState(false);
   const [toast, setToast] = useState<{ msg: string; ok: boolean } | null>(null);
 
@@ -83,27 +81,12 @@ export default function AdminCourseInstances() {
     else showToast(res.error || 'Create failed', false);
   };
 
-  const handleUpdate = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editItem) return;
-    setSubmitting(true);
-    const res = await updateCourseInstance(editItem.id, editForm);
-    setSubmitting(false);
-    if (res.success) { showToast('Instance updated'); setEditItem(null); loadData(); }
-    else showToast(res.error || 'Update failed', false);
-  };
-
   const handleDelete = async () => {
     if (!deleteId) return;
     const res = await deleteCourseInstance(deleteId);
     if (res.success) { showToast('Instance deleted'); loadData(); }
     else showToast(res.error || 'Delete failed', false);
     setDeleteId(null);
-  };
-
-  const openEdit = (item: CourseInstanceListItem) => {
-    setEditItem(item);
-    setEditForm({ doctorId: item.doctorId, maxCapacity: item.maxCapacity });
   };
 
   const items = data?.items ?? [];
@@ -196,9 +179,6 @@ export default function AdminCourseInstances() {
                     </td>
                     <td className="px-5 py-3 text-center">
                       <div className="flex items-center justify-center gap-1">
-                        <button type="button" onClick={() => openEdit(item)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-gray-100 text-slate-500" title="Edit">
-                          <i className="ri-pencil-line text-sm" />
-                        </button>
                         <button type="button" onClick={() => setDeleteId(item.id)} className="w-7 h-7 flex items-center justify-center rounded-lg hover:bg-red-50 text-red-500" title="Delete">
                           <i className="ri-delete-bin-line text-sm" />
                         </button>
@@ -283,38 +263,7 @@ export default function AdminCourseInstances() {
         </div>
       )}
 
-      {/* Edit Modal */}
-      {editItem && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
-          <div className="bg-white rounded-xl shadow-lg w-full max-w-md">
-            <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
-              <h2 className="text-sm font-semibold text-slate-800">Edit Instance — {editItem.courseCode}</h2>
-              <button type="button" onClick={() => setEditItem(null)} className="w-8 h-8 flex items-center justify-center text-slate-400 hover:text-slate-600"><i className="ri-close-line" /></button>
-            </div>
-            <form onSubmit={handleUpdate} className="p-5 space-y-4">
-              <div>
-                <label className={labelCls}>Doctor</label>
-                <select value={editForm.doctorId || ''} onChange={e => setEditForm(p => ({ ...p, doctorId: Number(e.target.value) }))} className={inputCls}>
-                  <option value="">No change</option>
-                  {doctors.map(d => <option key={d.id} value={d.id}>{d.fullName}</option>)}
-                </select>
-              </div>
-              <div>
-                <label className={labelCls}>Max Capacity</label>
-                <input type="number" min={1} value={editForm.maxCapacity ?? editItem.maxCapacity}
-                  onChange={e => setEditForm(p => ({ ...p, maxCapacity: Number(e.target.value) }))} className={inputCls} />
-              </div>
-              <div className="flex items-center justify-end gap-2 pt-2">
-                <button type="button" onClick={() => setEditItem(null)} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-gray-50">Cancel</button>
-                <button type="submit" disabled={submitting}
-                  className="px-4 py-2 bg-slate-700 text-white rounded-lg text-sm font-medium hover:bg-slate-800 disabled:opacity-50 transition-colors">
-                  {submitting ? 'Saving...' : 'Save Changes'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+
 
       {/* Delete Confirm */}
       {deleteId !== null && (

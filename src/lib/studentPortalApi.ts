@@ -11,12 +11,14 @@ import type {
   RegisterCourseRequest,
   RegisterCourseResponse,
   DropCourseResponse,
+  RegistrationRegisteredCoursesResponse,
   StudentCoursesResponse,
   StudentCourseDetail,
   StudentCourseMaterialsResponse,
   CourseAttendanceDetail,
   StudentScheduleData,
   StudentGradesData,
+  CourseGradesDetailed,
   GpaHistoryData,
   StudentAttendanceData,
   StudentExamData,
@@ -24,19 +26,22 @@ import type {
   StudentNotificationsData,
   StudentProfile,
   UpdateStudentProfileRequest,
+  ChangeStudentPasswordRequest,
 } from '@/types/student';
 
 // ---- Helpers ----
 
 interface ApiWrapper<T> {
-  success: boolean;
+  success?: boolean;
+  isSuccess?: boolean;
   data?: T;
   message?: string;
 }
 
 function unwrap<T>(response: { data: ApiWrapper<T> }): T {
   const body = response.data;
-  if (!body.success || body.data === undefined) {
+  const isOk = body.success === true || body.isSuccess === true;
+  if (!isOk || body.data === undefined) {
     throw new Error(body.message || 'Request failed');
   }
   return body.data;
@@ -67,6 +72,11 @@ export async function fetchAvailableCourses(params?: {
   if (params?.electiveOnly !== undefined) parts.push(`electiveOnly=${params.electiveOnly}`);
   const qs = parts.length > 0 ? `?${parts.join('&')}` : '';
   const res = await api.get<ApiWrapper<AvailableCoursesResponse>>(`/api/student/registration/available-courses${qs}`);
+  return unwrap(res);
+}
+
+export async function fetchMyRegistrationCourses(): Promise<RegistrationRegisteredCoursesResponse> {
+  const res = await api.get<ApiWrapper<RegistrationRegisteredCoursesResponse>>('/api/student/registration/my-courses');
   return unwrap(res);
 }
 
@@ -125,6 +135,11 @@ export async function fetchStudentSchedule(): Promise<StudentScheduleData> {
 export async function fetchStudentGrades(semesterId?: number): Promise<StudentGradesData> {
   const qs = semesterId !== undefined ? `?semesterId=${semesterId}` : '';
   const res = await api.get<ApiWrapper<StudentGradesData>>(`/api/student/grades${qs}`);
+  return unwrap(res);
+}
+
+export async function fetchCourseGradesDetailed(courseInstanceId: number): Promise<CourseGradesDetailed> {
+  const res = await api.get<ApiWrapper<CourseGradesDetailed>>(`/api/student/courses/${courseInstanceId}/grades`);
   return unwrap(res);
 }
 
@@ -189,5 +204,15 @@ export async function fetchStudentProfile(): Promise<StudentProfile> {
 }
 
 export async function updateStudentProfile(payload: UpdateStudentProfileRequest): Promise<void> {
-  await api.put('/api/student/profile', payload);
+  const res = await api.put<{ isSuccess?: boolean; message?: string }>('/api/student/profile', payload);
+  if (res.data && res.data.isSuccess === false) {
+    throw new Error(res.data.message || 'Failed to update profile');
+  }
+}
+
+export async function changeStudentPassword(payload: ChangeStudentPasswordRequest): Promise<void> {
+  const res = await api.post<{ isSuccess?: boolean; message?: string }>('/api/student/profile/change-password', payload);
+  if (res.data && res.data.isSuccess === false) {
+    throw new Error(res.data.message || 'Failed to change password');
+  }
 }

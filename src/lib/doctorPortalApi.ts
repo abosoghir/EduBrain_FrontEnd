@@ -175,18 +175,29 @@ export async function deleteCourseMaterial(
   }
 }
 
-// ============================================================
-// 5. Course Detail (basic info from courses list)
-// ============================================================
-
 export async function fetchDoctorCourseDetail(
   courseInstanceId: number
 ): Promise<{ data: DoctorCourseDetail | null; error?: string }> {
   try {
-    const res = await api.get<unknown>(`/api/doctor/courses/${courseInstanceId}`);
-    const data = unwrap<DoctorCourseDetail>(res);
-    if (data) return { data };
-    return { data: null, error: errMsg(res) };
+    // There is no single-course endpoint; derive from the courses list
+    const res = await fetchDoctorCourses();
+    if (res.data) {
+      const match = res.data.courses.find(c => c.courseInstanceId === courseInstanceId);
+      if (match) {
+        return {
+          data: {
+            courseInstanceId: match.courseInstanceId,
+            courseCode: match.courseCode,
+            courseName: match.courseName,
+            creditHours: match.creditHours,
+            semesterName: match.semesterName,
+            enrolledCount: match.enrolledCount,
+            maxCapacity: match.maxCapacity,
+          },
+        };
+      }
+    }
+    return { data: null, error: 'Course not found' };
   } catch {
     return { data: null, error: 'Failed to load course details' };
   }

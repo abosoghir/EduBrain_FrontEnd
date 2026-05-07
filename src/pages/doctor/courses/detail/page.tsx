@@ -14,7 +14,7 @@ import type {
   DoctorCourseMaterial,
   CreateMaterialForm,
 } from '@/types/doctor';
-import { MATERIAL_TYPE_LABELS } from '@/lib/enums';
+import { MATERIAL_TYPE_LABELS, ENROLLMENT_STATUS_LABELS, EnrollmentStatus } from '@/lib/enums';
 
 const TABS = [
   { id: 'students', label: 'Students', icon: 'ri-user-line' },
@@ -213,9 +213,13 @@ export default function DoctorCourseDetail() {
                     <td className="px-5 py-3 text-xs text-slate-400">{idx + 1}</td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-[10px] font-bold text-violet-600">
-                          {s.studentName.charAt(0)}
-                        </div>
+                        {s.profilePictureUrl ? (
+                          <img src={s.profilePictureUrl} alt={s.studentName} className="w-7 h-7 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-[10px] font-bold text-violet-600">
+                            {s.studentName.charAt(0)}
+                          </div>
+                        )}
                         <p className="text-sm font-medium text-slate-700">{s.studentName}</p>
                       </div>
                     </td>
@@ -229,9 +233,9 @@ export default function DoctorCourseDetail() {
                       </span>
                     </td>
                     <td className="px-5 py-3 text-center">
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${s.status === 'Enrolled' ? 'bg-emerald-50 text-emerald-600' : 'bg-amber-50 text-amber-600'
+                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${s.status === EnrollmentStatus.Enrolled ? 'bg-emerald-50 text-emerald-600' : s.status === EnrollmentStatus.Waitlisted ? 'bg-amber-50 text-amber-600' : s.status === EnrollmentStatus.Dropped ? 'bg-red-50 text-red-600' : s.status === EnrollmentStatus.Completed ? 'bg-blue-50 text-blue-600' : 'bg-gray-100 text-gray-500'
                         }`}>
-                        {s.status}
+                        {ENROLLMENT_STATUS_LABELS[s.status as EnrollmentStatus] || `Status ${s.status}`}
                       </span>
                     </td>
                   </tr>

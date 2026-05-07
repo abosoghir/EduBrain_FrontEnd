@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { fetchRegistrationStatus, fetchAvailableCourses, registerForCourse, dropCourse } from '@/lib/studentPortalApi';
-import type { RegistrationStatus, AvailableCourse } from '@/types/student';
+import { fetchRegistrationStatus, fetchAvailableCourses, fetchMyRegistrationCourses, registerForCourse, dropCourse } from '@/lib/studentPortalApi';
+import type { RegistrationStatus, AvailableCourse, RegistrationRegisteredCourse } from '@/types/student';
 import { COURSE_AVAILABILITY_LABELS, DAY_OF_WEEK_LABELS } from '@/lib/enums';
 
 type Tab = 'available' | 'registered';
@@ -11,6 +11,7 @@ let toastId = 0;
 export default function StudentRegistration() {
   const [status, setStatus] = useState<RegistrationStatus | null>(null);
   const [courses, setCourses] = useState<AvailableCourse[]>([]);
+  const [registeredCourses, setRegisteredCourses] = useState<RegistrationRegisteredCourse[]>([]);
   const [loading, setLoading] = useState(true);
   const [tab, setTab] = useState<Tab>('available');
   const [search, setSearch] = useState('');
@@ -18,7 +19,7 @@ export default function StudentRegistration() {
   const [pendingId, setPendingId] = useState<number | null>(null);
   const [confirmAction, setConfirmAction] = useState<{
     type: 'register' | 'drop';
-    course: AvailableCourse;
+    course: AvailableCourse | RegistrationRegisteredCourse;
     enrollmentId?: number;
   } | null>(null);
 
@@ -30,12 +31,14 @@ export default function StudentRegistration() {
 
   const refresh = useCallback(async () => {
     try {
-      const [s, c] = await Promise.all([
+      const [s, c, r] = await Promise.all([
         fetchRegistrationStatus(),
         fetchAvailableCourses(),
+        fetchMyRegistrationCourses(),
       ]);
       setStatus(s);
       setCourses(c.courses);
+      setRegisteredCourses(r.courses);
     } catch {
       // keep existing data
     }
@@ -47,7 +50,6 @@ export default function StudentRegistration() {
   }, [refresh]);
 
   const availableCourses = useMemo(() => courses.filter((c) => !c.isAlreadyRegistered), [courses]);
-  const registeredCourses = useMemo(() => courses.filter((c) => c.isAlreadyRegistered), [courses]);
 
   const filteredAvailable = useMemo(() => {
     if (!search.trim()) return availableCourses;
@@ -394,10 +396,10 @@ export default function StudentRegistration() {
                       )}
                     </div>
                   </div>
-                  {/* Drop Button — enrollmentId not in AvailableCourse, uses courseInstanceId as fallback key */}
+                  {/* Drop Button */}
                   <button
                     type="button"
-                    onClick={() => !isLoading && status?.isOpen && setConfirmAction({ type: 'drop', course, enrollmentId: course.courseInstanceId })}
+                    onClick={() => !isLoading && status?.isOpen && setConfirmAction({ type: 'drop', course, enrollmentId: course.enrollmentId })}
                     disabled={isLoading || !status?.isOpen}
                     className={`shrink-0 px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
                       isLoading || !status?.isOpen

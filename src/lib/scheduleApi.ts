@@ -232,13 +232,15 @@ export async function publishExamSchedule(
 
 export async function fetchSemesters(): Promise<SemesterOption[]> {
   try {
-    const res = await api.get<unknown>('/api/admin/semesters');
+    const res = await api.get<unknown>('/api/admin/academic-years/active/semesters');
     const raw = res.data as { data?: SemesterOption[] } & ApiResponse<SemesterOption[]>;
     if (raw && 'data' in raw && Array.isArray(raw.data)) return raw.data;
     if (raw && 'isSuccess' in raw && raw.isSuccess && Array.isArray(raw.data)) return raw.data;
     if (Array.isArray(res.data)) return res.data as SemesterOption[];
     return [];
-  } catch { return []; }
+  } catch {
+    return [];
+  }
 }
 
 export async function fetchDoctorsDropdown(): Promise<DoctorOption[]> {

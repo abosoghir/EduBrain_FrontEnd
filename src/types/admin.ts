@@ -19,22 +19,55 @@ export interface PaginatedResponse<T> {
 // DASHBOARD (GET /api/admin/dashboard/stats)
 // ============================================================
 
+export interface DepartmentEnrollment {
+  departmentId: number;
+  departmentName: string;
+  departmentCode: string;
+  studentCount: number;
+  color: string;
+}
+
 export interface DashboardStats {
   totalStudents: number;
   totalDoctors: number;
-  totalCourses: number;
-  activeCourseInstances: number;
-  registrationStatus: string; // "Open" | "Closed"
-  unpaidFeesCount: number;
-  currentAcademicYear: string;
+  activeCourses: number;
   currentSemester: string;
+  currentSemesterId: number;
+  enrollmentByDepartment: DepartmentEnrollment[];
+  lastSemesterEnrollmentByDepartment: DepartmentEnrollment[];
+  isRegistrationOpen: boolean;
+  pendingApprovals: number;
+  unpaidFeesCount: number;
+  highAbsenceAlerts: number;
 }
 
-export interface ActivityItem {
-  id: number;
-  event: string;
-  performedBy: string;
-  timestamp: string;
+// GET /api/admin/dashboard/recent-registrations
+export interface RecentRegistration {
+  enrollmentId: number;
+  registrationDate: string;
+  studentId: number;
+  studentCode: string;
+  studentName: string;
+  studentYear: number;
+  courseCode: string;
+  courseName: string;
+  creditHours: number;
+  status: number;
+  statusDisplay: string;
+  statusColor: string;
+}
+
+// GET /api/admin/dashboard/alerts
+export interface SystemAlert {
+  alertId: number;
+  type: number;                 // AlertType enum
+  typeDisplay: string;
+  title: string;
+  description: string;
+  severity: string;             // "high" | "medium" | "low"
+  actionLink: string;
+  createdAt: string;
+  isRead: boolean;
 }
 
 // ============================================================
@@ -62,6 +95,13 @@ export interface SemesterItem {
   minCreditHoursPerStudent: number;
   tuitionFees: number | null;
   courseInstancesCount: number;
+}
+
+export interface ActiveSemesterDropdownItem {
+  id: number;
+  name: string;
+  semesterNumber: number; // 0=FirstSemester, 1=SecondSemester, 2=SummerSemester
+  isCurrent: boolean;
 }
 
 export interface AcademicYearDetail {
@@ -120,70 +160,109 @@ export interface UpdateSemesterForm {
 }
 
 // ============================================================
-// REGISTRATION (GET /api/admin/registration/status)
+// REGISTRATION (GET /api/registration-control/settings)
 // ============================================================
 
-export interface RegistrationStatus {
+export interface RegistrationSettings {
   semesterId: number;
   semesterName: string;
-  status: string; // "Open" | "Closed"
-  openedOn: string | null;
-  closesOn: string | null;
-  totalRegistrations: number;
-  pendingApprovals: number;
+  status: number;                       // 0=Open, 1=Closed
+  statusDisplay: string;
+  isOpen: boolean;
+  registrationOpenDate: string | null;
+  registrationCloseDate: string | null;
+  daysRemaining: number;
+  minCreditHours: number;
+  maxCreditHours: number;
+  allowWaitlist: boolean;
+  totalRegisteredStudents: number;
+  coursesWithWaitlist: number;
+  studentsNotYetRegistered: number;
+  totalEnrollments: number;
+  waitlistedEnrollments: number;
 }
 
-// Open Registration (POST /api/admin/registration/open)
-export interface OpenRegistrationForm {
+// PUT /api/registration-control/settings
+export interface UpdateRegistrationSettingsForm {
   semesterId: number;
-  openDate: string;
-  closeDate: string;
+  minCreditHours?: number;
+  maxCreditHours?: number;
+  allowWaitlist?: boolean;
 }
 
-// Close Registration (POST /api/admin/registration/close)
-export interface CloseRegistrationForm {
+// POST /api/admin/registration/windows
+export interface OpenRegistrationWindowForm {
   semesterId: number;
+  startDate: string;
+  endDate: string;
+}
+
+// GET /api/registration-control/activity-log
+export interface RegistrationActivityLogItem {
+  enrollmentId: number;
+  activityDate: string;
+  studentId: number;
+  studentCode: string;
+  studentName: string;
+  studentEmail: string;
+  studentYear: number;
+  courseInstanceId: number;
+  courseCode: string;
+  courseName: string;
+  creditHours: number;
+  sectionName: string;
+  doctorName: string;
+  status: number;                       // EnrollmentStatus enum
+  statusDisplay: string;
+  notes: string;
+}
+
+export interface RegistrationActivityLogParams {
+  semesterId?: number;
+  fromDate?: string;
+  toDate?: string;
+  status?: number;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface RegistrationActivityLogResponse {
+  items: RegistrationActivityLogItem[];
+  pageNumber: number;
+  totalPages: number;
+  totalCount: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }
 
 // ============================================================
 // COURSES (GET /api/admin/courses)
 // ============================================================
 
-export interface GradeWeights {
-  midterm: number;
-  final: number;
-  practical: number;
-  quizzes: number;
-  oral: number;
-}
-
 export interface CourseListItem {
   id: number;
-  code: string;
   name: string;
+  code: string;
   description: string;
   creditHours: number;
   theoryHours: number;
   practicalHours: number;
   courseType: number;              // 0=Compulsory, 1=Elective
-  courseTypeDisplay: string;
-  price: number | null;
-  pricePerCreditHour: number | null;
   passingGrade: number;
-  departments: string[];
-  prerequisites: string[];
-  gradeWeights: GradeWeights;
+  prerequisitesCount: number;
+  departmentsCount: number;
+  instancesCount: number;
 }
 
 export interface CoursePrerequisite {
   id: number;
-  code: string;
-  name: string;
+  courseCode: string;
+  courseName: string;
 }
 
 export interface CourseDepartment {
   id: number;
-  name: string;
+  departmentType: string;         // "ComputerScience", "SoftwareEngineering", etc.
   code: string;
 }
 
@@ -198,8 +277,8 @@ export interface CourseInstance {
 
 export interface CourseDetail {
   id: number;
-  code: string;
   name: string;
+  code: string;
   description: string;
   creditHours: number;
   theoryHours: number;
@@ -207,46 +286,45 @@ export interface CourseDetail {
   price: number | null;
   pricePerCreditHour: number | null;
   courseType: number;
-  courseTypeDisplay: string;
   passingGrade: number;
-  gradeWeights: GradeWeights;
-  departments: CourseDepartment[];
   prerequisites: CoursePrerequisite[];
+  departments: CourseDepartment[];
   instances: CourseInstance[];
 }
 
 // Create Course (POST /api/admin/courses)
 export interface CreateCourseForm {
-  code: string;
   name: string;
+  code: string;
   description?: string;
   creditHours: number;
   theoryHours: number;
   practicalHours: number;
+  price?: number | null;
+  pricePerCreditHour?: number | null;
   courseType: number;
-  price?: number;
-  pricePerCreditHour?: number;
   passingGrade: number;
-  departmentIds: number[];
-  prerequisiteIds?: number[];
-  gradeWeights: GradeWeights;
 }
 
 // Update Course (PUT /api/admin/courses/{id})
 export interface UpdateCourseForm {
-  code?: string;
   name?: string;
+  code?: string;
   description?: string;
   creditHours?: number;
   theoryHours?: number;
   practicalHours?: number;
+  price?: number | null;
+  pricePerCreditHour?: number | null;
   courseType?: number;
-  price?: number;
-  pricePerCreditHour?: number;
   passingGrade?: number;
-  departmentIds?: number[];
-  prerequisiteIds?: number[];
-  gradeWeights?: GradeWeights;
+}
+
+// Create Course Instance (POST /api/admin/courses/{courseId}/instances)
+export interface CreateCourseInstanceForCourseForm {
+  semesterId: number;
+  doctorId: number;
+  maxCapacity: number;
 }
 
 // ============================================================
@@ -562,41 +640,37 @@ export interface StudentDetail {
   paymentHistory: PaymentHistoryEntry[];
 }
 
-// Create Student (POST /api/admin/users/students)
+// Create Student (POST /api/users/students)
 export interface CreateStudentForm {
-  fullName: string;
   email: string;
-  phoneNumber?: string;
+  name: string;
+  phoneNumber: string;
   nationalId: string;
-  gender: number;              // 0=Male, 1=Female
-  dateOfBirth: string;
-  nationality: string;
-  religion: string;
-  address: string;
-  city: string;
-  fatherPhone: string;
-  fatherJob?: string;
-  previousQualification?: string;
+  yearLevel: number;
   departmentId?: number;
-  advisorId?: number;
-  yearLevel: number;           // 0=Freshman, 1=Sophomore, 2=Junior, 3=Senior
-  password: string;
+  academicAdvisorId?: number;
 }
 
-export interface CreateStudentResponse {
-  id: number;
-  studentCode: string;
-}
-
-// Update Student (PUT /api/admin/users/{id})
+// Update Student (PUT /api/students/{studentId})
 export interface UpdateStudentForm {
-  fullName?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   phoneNumber?: string;
-  departmentId?: number;
-  advisorId?: number;
+  nationalId?: string;
   yearLevel?: number;
-  status?: string;
+  semesterNumber?: number;
+  departmentId?: number;
+  academicAdvisorId?: number;
+  nationality?: string;
+  gender?: number;
+  religion?: string;
+  dateOfBirth?: string;
+  address?: string;
+  city?: string;
+  fatherPhone?: string;
+  fatherJob?: string;
+  previousQualification?: string;
 }
 
 export interface UpdateStudentResponse {
@@ -699,31 +773,27 @@ export interface DoctorDetail {
   recentReviews: DoctorReview[];
 }
 
-// Create Doctor (POST /api/admin/users/doctors)
+// Create Doctor (POST /api/users/doctors)
 export interface CreateDoctorForm {
-  fullName: string;
   email: string;
-  phoneNumber?: string;
+  name: string;
+  phoneNumber: string;
+  nationalId: string;
   title: number;               // 0=Professor … 4=TeachingAssistant
   departmentId: number;
   officeRoomId?: number;
-  password: string;
 }
 
-export interface CreateDoctorResponse {
-  id: number;
-  doctorCode?: string;
-}
-
-// Update Doctor (PUT /api/admin/users/{id})
+// Update Doctor (PUT /api/doctors/{doctorId})
 export interface UpdateDoctorForm {
-  fullName?: string;
+  firstName?: string;
+  lastName?: string;
   email?: string;
   phoneNumber?: string;
+  nationalId?: string;
   title?: number;
   departmentId?: number;
   officeRoomId?: number;
-  status?: string;
 }
 
 export interface UpdateDoctorResponse {
@@ -765,25 +835,18 @@ export interface AdvisorDetail {
 
 // Create Advisor (POST /api/admin/users/advisors)
 export interface CreateAdvisorForm {
-  fullName: string;
   email: string;
-  phoneNumber?: string;
+  name: string;
+  phoneNumber: string;
+  nationalId: string;
   officeRoomId?: number;
-  password: string;
 }
 
-export interface CreateAdvisorResponse {
-  id: number;
-  advisorCode?: string;
-}
-
-// Update Advisor (PUT /api/admin/users/{id})
+// Update Advisor (PUT /api/admin/users/advisors/{id})
 export interface UpdateAdvisorForm {
-  fullName?: string;
-  email?: string;
-  phoneNumber?: string;
-  officeRoomId?: number | null;
-  status?: string;
+  name: string;
+  phoneNumber: string;
+  officeRoomId?: number;
 }
 
 // ============================================================
@@ -793,30 +856,65 @@ export interface UpdateAdvisorForm {
 export interface RoomListItem {
   id: number;
   name: string;
-  roomType: number;            // 0=LectureHall, 1=Lab, 2=Office
-  roomTypeDisplay: string;
-  building: string;
-  floor: number;
+  location: string;
   capacity: number;
-  isActive: boolean;
+  hasProjector: boolean;
+  hasSmartBoard: boolean;
+  roomType: number;              // 0=Office, 1=LectureHall, 2=Lab, 3=ExamHall
+}
+
+export interface RoomScheduleEntry {
+  id: number;
+  courseName: string;
+  courseCode: string;
+  doctorName: string;
+  day: number;
+  startTime: string;
+  endTime: string;
+  scheduleType: number;
+}
+
+export interface RoomExamScheduleEntry {
+  id: number;
+  courseName: string;
+  courseCode: string;
+  examDate: string;
+  startTime: string;
+  endTime: string;
+  examType: number;
+  isPublished: boolean;
+}
+
+export interface RoomDetail {
+  id: number;
+  name: string;
+  location: string;
+  capacity: number;
+  hasProjector: boolean;
+  hasSmartBoard: boolean;
+  roomType: number;
+  schedules: RoomScheduleEntry[];
+  examSchedules: RoomExamScheduleEntry[];
 }
 
 // Create Room (POST /api/admin/rooms)
 export interface CreateRoomForm {
   name: string;
   roomType: number;
-  building: string;
-  floor?: number;
-  capacity: number;
+  capacity?: number;
+  location?: string;
+  hasProjector: boolean;
+  hasSmartBoard: boolean;
 }
 
 // Update Room (PUT /api/admin/rooms/{id})
 export interface UpdateRoomForm {
   name?: string;
   roomType?: number;
-  building?: string;
-  floor?: number;
   capacity?: number;
+  location?: string;
+  hasProjector?: boolean;
+  hasSmartBoard?: boolean;
 }
 
 // ============================================================
@@ -830,18 +928,16 @@ export interface CourseScheduleItem {
   courseName: string;
   creditHours: number;
   day: number;
-  dayDisplay: string;
   startTime: string;
   endTime: string;
-  scheduleType: number;
-  scheduleTypeDisplay: string;
+  type: number;
+  typeDisplay: string;
   roomId: number | null;
   roomName: string | null;
   roomBuilding: string | null;
   doctorId: number;
   doctorName: string;
   doctorTitle: number;
-  doctorTitleDisplay: string;
   departmentId: number;
   departmentName: string;
   enrolledCount: number;
@@ -865,7 +961,7 @@ export interface CreateCourseScheduleForm {
   day: number;
   startTime: string;
   endTime: string;
-  scheduleType: number;
+  type: number;
   roomId?: number | null;
 }
 
@@ -876,7 +972,7 @@ export interface CreateCourseScheduleResponse {
   day: number;
   startTime: string;
   endTime: string;
-  scheduleType: string;
+  type: string;
   roomName: string | null;
   hasConflict: boolean;
   conflictMessage: string | null;
@@ -886,7 +982,7 @@ export interface UpdateCourseScheduleForm {
   day?: number;
   startTime?: string;
   endTime?: string;
-  scheduleType?: number;
+  type?: number;
   roomId?: number | null;
 }
 
@@ -897,8 +993,6 @@ export interface UpdateCourseScheduleResponse {
   day: number;
   startTime: string;
   endTime: string;
-  scheduleType: string;
-  roomName: string | null;
   message: string;
 }
 
@@ -1024,4 +1118,247 @@ export interface CourseOption {
   id: number;
   code: string;
   name: string;
+}
+
+// ============================================================
+// GRADING MANAGEMENT
+// ============================================================
+
+export interface EnrollmentStudentGrade {
+  enrollmentId: number;
+  studentId: number;
+  studentName: string;
+  studentCode: string;
+  oral: number;
+  practical: number;
+  quizzes: number;
+  midterm: number;
+  final: number;
+  totalGrade: number;
+  letterGrade: string;
+  gradePoints: number;
+  descriptiveGrade: string;
+  isPassed: boolean;
+  status: string;
+  isGraded: boolean;
+}
+
+export interface CourseEnrollmentsData {
+  courseInstanceId: number;
+  courseCode: string;
+  courseName: string;
+  creditHours: number;
+  semesterId: number;
+  semesterName: string;
+  academicYear: string;
+  totalEnrolled: number;
+  gradedCount: number;
+  passedCount: number;
+  failedCount: number;
+  students: EnrollmentStudentGrade[];
+}
+
+export interface SetGradeForm {
+  oral?: number;
+  practical?: number;
+  quizzes?: number;
+  midterm?: number;
+  final?: number;
+}
+
+export interface SetGradeResponse {
+  enrollmentId: number;
+  studentId: number;
+  studentName: string;
+  courseName: string;
+  oral: number;
+  practical: number;
+  quizzes: number;
+  midterm: number;
+  final: number;
+  totalGrade: number;
+  letterGrade: string;
+  gradePoints: number;
+  descriptiveGrade: string;
+  isPassed: boolean;
+  status: string;
+}
+
+export interface AcademicRecordCourse {
+  enrollmentId: number;
+  courseInstanceId: number;
+  courseCode: string;
+  courseName: string;
+  creditHours: number;
+  oral: number;
+  practical: number;
+  quizzes: number;
+  midterm: number;
+  final: number;
+  totalGrade: number;
+  letterGrade: string;
+  gradePoints: number;
+  descriptiveGrade: string;
+  isPassed: boolean;
+  status: string;
+  doctorName: string;
+}
+
+export interface AcademicRecordSemester {
+  semesterId: number;
+  semesterName: string;
+  academicYear: string;
+  semesterGPA: number;
+  cumulativeGPAAtTime: number;
+  creditHoursAttempted: number;
+  creditHoursEarned: number;
+  courses: AcademicRecordCourse[];
+}
+
+export interface AcademicRecordData {
+  studentId: number;
+  studentName: string;
+  department: string;
+  currentCumulativeGPA: number;
+  generalGrade: string;
+  descriptiveGrade: string;
+  totalCreditHoursEarned: number;
+  totalCreditHoursAttempted: number;
+  isInGoodStanding: boolean;
+  isOnAcademicProbation: boolean;
+  qualifiesForHonors: boolean;
+  hasAnyFailures: boolean;
+  studyYears: number;
+  semesters: AcademicRecordSemester[];
+  allCourses: AcademicRecordCourse[];
+}
+
+// ============================================================
+// NOTIFICATIONS MANAGEMENT
+// ============================================================
+
+export interface NotificationItem {
+  notificationId: number;
+  title: string;
+  message: string;
+  type: number;
+  typeDisplay: string;
+  sentDate: string;
+  senderName: string;
+  isRead: boolean;
+  readAt: string | null;
+  recipientCount: number;
+}
+
+export interface NotificationFilterParams {
+  studentId?: number;
+  type?: number;
+  isRead?: boolean;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface SendNotificationForm {
+  title: string;
+  message: string;
+  type: number;
+  studentIds?: number[];
+  departmentId?: number;
+  yearLevel?: number;
+  sendToAll?: boolean;
+}
+
+export interface SendNotificationResponse {
+  notificationId: number;
+  recipientCount: number;
+  title: string;
+  message: string;
+}
+
+// ============================================================
+// FINANCE MANAGEMENT (FEES)
+// ============================================================
+
+export interface FeeStatusDistribution {
+  status: string;
+  count: number;
+  amount: number;
+  color: string;
+}
+
+export interface FeeDepartmentBreakdown {
+  departmentId: number;
+  departmentName: string;
+  totalBilled: number;
+  totalCollected: number;
+  studentCount: number;
+}
+
+export interface FeeRecentPayment {
+  studentFeeId: number;
+  studentName: string;
+  amount: number;
+  paymentDate: string;
+  method: number;
+  methodDisplay: string;
+}
+
+export interface FeesOverview {
+  totalBilled: number;
+  totalCollected: number;
+  pendingPayments: number;
+  overdueAmount: number;
+  collectionRate: number;
+  statusDistribution: FeeStatusDistribution[];
+  departmentBreakdown: FeeDepartmentBreakdown[];
+  recentPayments: FeeRecentPayment[];
+}
+
+export interface StudentFeeItem {
+  studentFeeId: number;
+  studentId: number;
+  studentCode: string;
+  studentName: string;
+  studentEmail: string;
+  departmentName: string;
+  yearLevel: number;
+  semesterId: number;
+  semesterName: string;
+  tuitionFees: number;
+  booksFees: number;
+  discount: number;
+  totalAmount: number;
+  paidAmount: number;
+  remainingAmount: number;
+  status: number;
+  statusDisplay: string;
+  statusColor: string;
+  paymentMethod: number;
+  paymentMethodDisplay: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface StudentFeeFilterParams {
+  studentId?: number;
+  semesterId?: number;
+  status?: number;
+  page?: number;
+  pageSize?: number;
+}
+
+export interface UpdatePaymentStatusForm {
+  studentFeeId: number;
+  status: number;
+  paymentMethod: number;
+  notes?: string;
+}
+
+export interface UpdatePaymentStatusResponse {
+  studentFeeId: number;
+  studentName: string;
+  newStatus: number;
+  paymentMethod: number;
+  totalAmount: number;
+  updatedAt: string;
 }

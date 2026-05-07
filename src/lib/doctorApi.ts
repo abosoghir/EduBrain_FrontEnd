@@ -10,7 +10,6 @@ import type {
   DoctorListParams,
   DoctorDetail,
   CreateDoctorForm,
-  CreateDoctorResponse,
   UpdateDoctorForm,
   UpdateDoctorResponse,
   DepartmentOption,
@@ -34,6 +33,15 @@ function unwrap<T>(res: { data: ApiResponse<T> | T }): T | null {
     return null;
   }
   return res.data as T;
+}
+
+function isSuccess(res: { data: unknown }): boolean {
+  const d = res.data as ApiResponse<unknown>;
+  if (d && typeof d === 'object') {
+    if ('isSuccess' in d) return !!d.isSuccess;
+    if ('success' in d) return !!(d as { success?: boolean }).success;
+  }
+  return false;
 }
 
 function getErrorMessage(res: { data: unknown }): string {
@@ -79,16 +87,13 @@ export async function fetchDoctorDetail(
 
 export async function createDoctor(
   form: CreateDoctorForm
-): Promise<{ data: CreateDoctorResponse | null; error?: string }> {
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await api.post<ApiResponse<CreateDoctorResponse>>('/api/admin/users/doctors', form);
-    const raw = res.data as unknown as { success?: boolean; data?: CreateDoctorResponse; message?: string };
-    if (raw?.success && raw.data) return { data: raw.data };
-    const d = res.data as ApiResponse<CreateDoctorResponse>;
-    if (d?.isSuccess && d?.hasData && d.data) return { data: d.data };
-    return { data: null, error: getErrorMessage(res) };
+    const res = await api.post<unknown>('/api/users/doctors', form);
+    if (isSuccess(res)) return { success: true };
+    return { success: false, error: getErrorMessage(res) };
   } catch {
-    return { data: null, error: 'Failed to create doctor' };
+    return { success: false, error: 'Failed to create doctor' };
   }
 }
 

@@ -37,9 +37,10 @@ export enum DoctorTitle {
 }
 
 export enum RoomType {
-  LectureHall = 0,
-  Lab = 1,
-  Office = 2,
+  Office = 0,
+  LectureHall = 1,
+  Lab = 2,
+  ExamHall = 3,
 }
 
 export enum NotificationType {
@@ -74,17 +75,16 @@ export enum ExamType {
 }
 
 export enum PaymentStatus {
-  Pending = 0,
-  Paid = 1,
-  Overdue = 2,
-  PartiallyPaid = 3,
+  Paid = 0,
+  PartiallyPaid = 1,
+  Unpaid = 2,
 }
 
 export enum PaymentMethod {
-  BankTransfer = 0,
-  CreditCard = 1,
-  Cash = 2,
-  OnlinePayment = 3,
+  Cash = 0,
+  Card = 1,
+  Online = 2,
+  BankTransfer = 3,
 }
 
 export enum DayOfWeek {
@@ -120,12 +120,13 @@ export enum Grade {
   AMinus = 2,
   BPlus = 3,
   B = 4,
-  CPlus = 5,
-  C = 6,
-  DPlus = 7,
-  D = 8,
-  DMinus = 9,
-  F = 10,
+  BMinus = 5,
+  CPlus = 6,
+  C = 7,
+  CMinus = 8,
+  DPlus = 9,
+  D = 10,
+  F = 11,
 }
 
 export enum DepartmentType {
@@ -169,6 +170,16 @@ export enum WarningReason {
   Other = 3,
 }
 
+export enum AlertType {
+  UnpaidFees = 0,
+  HighAbsence = 1,
+  LowGPA = 2,
+  CourseConflict = 3,
+  RoomConflict = 4,
+  RegistrationDeadline = 5,
+  System = 6,
+}
+
 // UI-friendly labels
 export const ROLE_LABELS: Record<Role, string> = {
   [Role.Admin]: 'Administrator',
@@ -207,9 +218,10 @@ export const ENROLLMENT_STATUS_LABELS: Record<EnrollmentStatus, string> = {
 };
 
 export const ROOM_TYPE_LABELS: Record<RoomType, string> = {
+  [RoomType.Office]: 'Office',
   [RoomType.LectureHall]: 'Lecture Hall',
   [RoomType.Lab]: 'Lab',
-  [RoomType.Office]: 'Office',
+  [RoomType.ExamHall]: 'Exam Hall',
 };
 
 export const SCHEDULE_TYPE_LABELS: Record<ScheduleType, string> = {
@@ -226,17 +238,16 @@ export const EXAM_TYPE_LABELS: Record<ExamType, string> = {
 };
 
 export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
-  [PaymentStatus.Pending]: 'Pending',
   [PaymentStatus.Paid]: 'Paid',
-  [PaymentStatus.Overdue]: 'Overdue',
   [PaymentStatus.PartiallyPaid]: 'Partially Paid',
+  [PaymentStatus.Unpaid]: 'Unpaid',
 };
 
 export const PAYMENT_METHOD_LABELS: Record<PaymentMethod, string> = {
-  [PaymentMethod.BankTransfer]: 'Bank Transfer',
-  [PaymentMethod.CreditCard]: 'Credit Card',
   [PaymentMethod.Cash]: 'Cash',
-  [PaymentMethod.OnlinePayment]: 'Online Payment',
+  [PaymentMethod.Card]: 'Card',
+  [PaymentMethod.Online]: 'Online',
+  [PaymentMethod.BankTransfer]: 'Bank Transfer',
 };
 
 export const DAY_OF_WEEK_LABELS: Record<DayOfWeek, string> = {
@@ -272,11 +283,12 @@ export const GRADE_LABELS: Record<Grade, string> = {
   [Grade.AMinus]: 'A-',
   [Grade.BPlus]: 'B+',
   [Grade.B]: 'B',
+  [Grade.BMinus]: 'B-',
   [Grade.CPlus]: 'C+',
   [Grade.C]: 'C',
+  [Grade.CMinus]: 'C-',
   [Grade.DPlus]: 'D+',
   [Grade.D]: 'D',
-  [Grade.DMinus]: 'D-',
   [Grade.F]: 'F',
 };
 
@@ -332,3 +344,13 @@ export const WARNING_REASON_LABELS: Record<WarningReason, string> = {
   [WarningReason.UnpaidFees]: 'Unpaid Fees',
   [WarningReason.Other]: 'Other',
 };
+
+export const ALERT_TYPE_LABELS: Record<AlertType, string> = {
+  [AlertType.UnpaidFees]: 'Unpaid Fees',
+  [AlertType.HighAbsence]: 'High Absence',
+  [AlertType.LowGPA]: 'Low GPA',
+  [AlertType.CourseConflict]: 'Course Conflict',
+  [AlertType.RoomConflict]: 'Room Conflict',
+  [AlertType.RegistrationDeadline]: 'Registration Deadline',
+  [AlertType.System]: 'System',
+};

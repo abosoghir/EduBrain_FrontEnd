@@ -58,7 +58,7 @@ export default function EditDoctorModal({ doctor, onSubmit, onClose, submitting 
               <div><label className="block text-xs font-medium text-slate-600 mb-1">Department</label>
                 <select value={form.departmentId ?? ''} onChange={e => set('departmentId', Number(e.target.value))} className={inputCls}>
                   <option value="">— Select —</option>
-                  {departments.map(d => <option key={d.id} value={d.id}>{d.description}</option>)}
+                  {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
                 </select></div>
               <div><label className="block text-xs font-medium text-slate-600 mb-1">Office Room</label>
                 <select value={form.officeRoomId ?? ''} onChange={e => set('officeRoomId', e.target.value ? Number(e.target.value) : undefined)} className={inputCls}>

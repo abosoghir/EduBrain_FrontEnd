@@ -30,7 +30,7 @@ export default function ExamSchedulesTab() {
     const res = await fetchExamSchedules({ ...filters, page, pageSize: 50 });
     if (res.data) {
       setExams(res.data.items);
-      setPagination({ page: res.data.page, pageSize: res.data.pageSize, totalCount: res.data.totalCount, totalPages: res.data.totalPages, hasPreviousPage: res.data.hasPreviousPage, hasNextPage: res.data.hasNextPage });
+      setPagination({ page: res.data.pageNumber, pageSize: 50, totalCount: res.data.totalCount, totalPages: res.data.totalPages, hasPreviousPage: res.data.hasPreviousPage, hasNextPage: res.data.hasNextPage });
     } else { setExams([]); if (res.error) setToast({ msg: res.error, type: 'error' }); }
     setLoading(false);
   }, [filters]);
@@ -95,7 +95,7 @@ export default function ExamSchedulesTab() {
         </select>
         <select value={filters.departmentId ?? ''} onChange={e => setFilters(p => ({ ...p, departmentId: e.target.value ? Number(e.target.value) : undefined }))} className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-200">
           <option value="">All Departments</option>
-          {departments.map(d => <option key={d.id} value={d.id}>{d.description}</option>)}
+          {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
         <select value={filters.examType ?? ''} onChange={e => setFilters(p => ({ ...p, examType: e.target.value !== '' ? Number(e.target.value) : undefined }))} className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-200">
           <option value="">All Exam Types</option>

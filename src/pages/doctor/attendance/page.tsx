@@ -1,16 +1,9 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchDoctorCourses, fetchAttendanceSession, submitAttendance } from '@/lib/doctorPortalApi';
 import type { DoctorCourse, DoctorAttendanceStudent, RecordAttendanceRequest } from '@/types/doctor';
 
 function todayISO(): string {
   return new Date().toISOString().split('T')[0];
-}
-
-function getWeekNumber(dateStr: string): number {
-  // Simple heuristic — week from Jan 1 of that year
-  const d = new Date(dateStr);
-  const start = new Date(d.getFullYear(), 0, 1);
-  return Math.ceil(((d.getTime() - start.getTime()) / 86400000 + start.getDay() + 1) / 7);
 }
 
 const STATUS_STYLE: Record<number, string> = {
@@ -20,6 +13,15 @@ const STATUS_STYLE: Record<number, string> = {
 };
 const STATUS_IDLE = 'bg-gray-50 text-gray-300 hover:bg-gray-100';
 
+// Local state type for tracking attendance marks (currentStatus can start null)
+interface StudentMark {
+  studentId: number;
+  studentCode: string;
+  studentName: string;
+  profilePictureUrl: string | null;
+  status: number; // 0=Present, 1=Absent, 2=Late (we default null → 0 for UI)
+}
+
 export default function DoctorAttendance() {
   const [courses, setCourses] = useState<DoctorCourse[]>([]);
   const [coursesLoaded, setCoursesLoaded] = useState(false);
@@ -27,21 +29,23 @@ export default function DoctorAttendance() {
   const [selectedCourseId, setSelectedCourseId] = useState<number | ''>('');
   const [selectedDate, setSelectedDate] = useState<string>(todayISO());
 
-  const [students, setStudents] = useState<DoctorAttendanceStudent[]>([]);
+  const [students, setStudents] = useState<StudentMark[]>([]);
   const [isAttendanceTaken, setIsAttendanceTaken] = useState(false);
+  const [sessionWeekNumber, setSessionWeekNumber] = useState(1);
+  const [sessionCourseName, setSessionCourseName] = useState('');
   const [sessionLoading, setSessionLoading] = useState(false);
   const [sessionLoaded, setSessionLoaded] = useState(false);
 
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
-  // Load courses on first render
-  useState(() => {
+  // Load courses on mount
+  useEffect(() => {
     fetchDoctorCourses().then(({ data }) => {
       setCourses(data?.courses ?? []);
       setCoursesLoaded(true);
     });
-  });
+  }, []);
 
   const loadSession = useCallback(async () => {
     if (!selectedCourseId || !selectedDate) return;
@@ -50,8 +54,17 @@ export default function DoctorAttendance() {
     setMessage(null);
     const { data, error } = await fetchAttendanceSession(Number(selectedCourseId), selectedDate);
     if (data) {
-      setStudents(data.students.map((s) => ({ ...s })));
-      setIsAttendanceTaken(data.isAttendanceTaken);
+      // Map API students (currentStatus can be null) to local state
+      setStudents(data.students.map((s: DoctorAttendanceStudent) => ({
+        studentId: s.studentId,
+        studentCode: s.studentCode,
+        studentName: s.studentName,
+        profilePictureUrl: s.profilePictureUrl,
+        status: s.currentStatus ?? 0, // Default unset → Present
+      })));
+      setIsAttendanceTaken(data.attendanceAlreadyTaken);
+      setSessionWeekNumber(data.weekNumber);
+      setSessionCourseName(data.courseName);
     } else {
       setStudents([]);
       setMessage({ type: 'error', text: error ?? 'Failed to load session.' });
@@ -75,7 +88,7 @@ export default function DoctorAttendance() {
     const payload: RecordAttendanceRequest = {
       courseInstanceId: Number(selectedCourseId),
       date: selectedDate,
-      weekNumber: getWeekNumber(selectedDate),
+      weekNumber: sessionWeekNumber,
       students: students.map((s) => ({ studentId: s.studentId, status: s.status })),
     };
     const { success, message: msg, error } = await submitAttendance(payload);
@@ -86,7 +99,7 @@ export default function DoctorAttendance() {
       setMessage({ type: 'error', text: error ?? 'Failed to save attendance.' });
     }
     setSaving(false);
-  }, [selectedCourseId, selectedDate, students]);
+  }, [selectedCourseId, selectedDate, sessionWeekNumber, students]);
 
   const quickStats = useMemo(() => {
     if (!students.length) return null;
@@ -99,7 +112,6 @@ export default function DoctorAttendance() {
   }, [students]);
 
   const isPastDate = selectedDate < todayISO();
-  const selectedCourse = courses.find((c) => c.courseInstanceId === Number(selectedCourseId));
 
   return (
     <div>
@@ -148,13 +160,15 @@ export default function DoctorAttendance() {
       </div>
 
       {/* Session info + warnings */}
-      {sessionLoaded && selectedCourse && (
+      {sessionLoaded && sessionCourseName && (
         <div className="mb-4 space-y-2">
           <div className="flex items-center gap-3 p-3 bg-white rounded-xl border border-gray-100 text-xs text-slate-600">
             <i className="ri-information-line text-violet-500" />
-            <span className="font-medium">{selectedCourse.courseName}</span>
+            <span className="font-medium">{sessionCourseName}</span>
             <span className="text-slate-400">·</span>
             <span>{new Date(selectedDate).toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            <span className="text-slate-400">·</span>
+            <span>Week {sessionWeekNumber}</span>
             {isAttendanceTaken && (
               <span className="ml-auto px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-600 font-medium text-[10px]">
                 ✅ Attendance Taken
@@ -225,9 +239,13 @@ export default function DoctorAttendance() {
                     <td className="px-5 py-3 text-xs text-slate-400">{idx + 1}</td>
                     <td className="px-5 py-3">
                       <div className="flex items-center gap-2">
-                        <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-[10px] font-bold text-violet-600">
-                          {s.studentName.charAt(0)}
-                        </div>
+                        {s.profilePictureUrl ? (
+                          <img src={s.profilePictureUrl} alt={s.studentName} className="w-7 h-7 rounded-full object-cover" />
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-violet-100 flex items-center justify-center text-[10px] font-bold text-violet-600">
+                            {s.studentName.charAt(0)}
+                          </div>
+                        )}
                         <div>
                           <p className="text-sm font-medium text-slate-700">{s.studentName}</p>
                           <p className="text-[10px] text-slate-400">{s.studentCode}</p>

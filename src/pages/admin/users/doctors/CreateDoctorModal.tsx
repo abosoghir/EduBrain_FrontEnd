@@ -9,7 +9,7 @@ interface Props {
 }
 
 const EMPTY: CreateDoctorForm = {
-  fullName: '', email: '', phoneNumber: '', title: 0, departmentId: 0, password: '',
+  email: '', name: '', phoneNumber: '', nationalId: '', title: 0, departmentId: 0,
 };
 
 const inputCls = 'w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-slate-200 focus:border-slate-400';
@@ -24,7 +24,7 @@ export default function CreateDoctorModal({ onSubmit, onClose, submitting }: Pro
 
   const sf = (field: keyof CreateDoctorForm, value: unknown) => setForm(p => ({ ...p, [field]: value }));
   const handleSubmit = (e: React.FormEvent) => { e.preventDefault(); onSubmit(form); };
-  const isValid = !!(form.fullName && form.email && form.departmentId && form.password);
+  const isValid = !!(form.name && form.email && form.phoneNumber && form.nationalId && form.departmentId);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/30 p-4">
@@ -38,8 +38,8 @@ export default function CreateDoctorModal({ onSubmit, onClose, submitting }: Pro
         <form onSubmit={handleSubmit} className="p-5 space-y-4">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Full Name *</label>
-              <input type="text" required value={form.fullName} onChange={e => sf('fullName', e.target.value)} className={inputCls} />
+              <label className={labelCls}>Name *</label>
+              <input type="text" required value={form.name} onChange={e => sf('name', e.target.value)} className={inputCls} />
             </div>
             <div>
               <label className={labelCls}>Email *</label>
@@ -48,9 +48,15 @@ export default function CreateDoctorModal({ onSubmit, onClose, submitting }: Pro
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className={labelCls}>Phone Number</label>
-              <input type="text" value={form.phoneNumber ?? ''} onChange={e => sf('phoneNumber', e.target.value)} className={inputCls} />
+              <label className={labelCls}>Phone Number *</label>
+              <input type="text" required value={form.phoneNumber} onChange={e => sf('phoneNumber', e.target.value)} className={inputCls} placeholder="+201001234567" />
             </div>
+            <div>
+              <label className={labelCls}>National ID *</label>
+              <input type="text" required value={form.nationalId} onChange={e => sf('nationalId', e.target.value)} className={inputCls} />
+            </div>
+          </div>
+          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Title *</label>
               <select value={form.title} onChange={e => sf('title', Number(e.target.value))} className={inputCls}>
@@ -61,8 +67,6 @@ export default function CreateDoctorModal({ onSubmit, onClose, submitting }: Pro
                 <option value={4}>Teaching Assistant</option>
               </select>
             </div>
-          </div>
-          <div className="grid grid-cols-2 gap-3">
             <div>
               <label className={labelCls}>Department *</label>
               <select required value={form.departmentId || ''} onChange={e => sf('departmentId', Number(e.target.value))} className={inputCls}>
@@ -70,17 +74,13 @@ export default function CreateDoctorModal({ onSubmit, onClose, submitting }: Pro
                 {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
               </select>
             </div>
-            <div>
-              <label className={labelCls}>Office Room</label>
-              <select value={form.officeRoomId ?? ''} onChange={e => sf('officeRoomId', e.target.value ? Number(e.target.value) : undefined)} className={inputCls}>
-                <option value="">— Select —</option>
-                {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
-              </select>
-            </div>
           </div>
           <div>
-            <label className={labelCls}>Password *</label>
-            <input type="password" required value={form.password} onChange={e => sf('password', e.target.value)} className={inputCls} placeholder="Temporary password" />
+            <label className={labelCls}>Office Room</label>
+            <select value={form.officeRoomId ?? ''} onChange={e => sf('officeRoomId', e.target.value ? Number(e.target.value) : undefined)} className={inputCls}>
+              <option value="">— Select —</option>
+              {rooms.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+            </select>
           </div>
           <div className="flex items-center justify-end gap-2 pt-2">
             <button type="button" onClick={onClose} className="px-4 py-2 rounded-lg text-sm text-slate-600 hover:bg-gray-50 transition-colors">Cancel</button>

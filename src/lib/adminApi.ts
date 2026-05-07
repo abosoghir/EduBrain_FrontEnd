@@ -7,22 +7,26 @@ import { api } from '@/lib/api';
 import type { ApiResponse } from '@/lib/api';
 import type {
   DashboardStats,
-  ActivityItem,
+  RecentRegistration,
+  SystemAlert,
   AcademicYearListItem,
   AcademicYearDetail,
   CreateAcademicYearForm,
   UpdateAcademicYearForm,
   CreateSemesterForm,
   UpdateSemesterForm,
+  UpdateSemesterRegistrationDatesForm,
+  ActiveSemesterDropdownItem,
   UpdateRegistrationDatesForm,
   SemesterItem,
-  RegistrationStatus,
-  OpenRegistrationForm,
-  CloseRegistrationForm,
+  RegistrationSettings,
+  UpdateRegistrationSettingsForm,
+  OpenRegistrationWindowForm,
+  RegistrationActivityLogParams,
+  RegistrationActivityLogResponse,
   CourseInstanceListItem,
   CourseInstanceListParams,
   CreateCourseInstanceForm,
-  UpdateCourseInstanceForm,
   EnrollmentListItem,
   SemesterOption,
   DoctorOption,
@@ -79,9 +83,10 @@ function isSuccess(res: { data: unknown }): boolean {
 // DASHBOARD
 // ============================================================
 
-export async function fetchDashboardStats(): Promise<{ data: DashboardStats | null; error?: string }> {
+export async function fetchDashboardStats(semesterId?: number): Promise<{ data: DashboardStats | null; error?: string }> {
   try {
-    const res = await api.get<unknown>('/api/admin/dashboard/stats');
+    const qs = semesterId ? `?semesterId=${semesterId}` : '';
+    const res = await api.get<unknown>(`/api/admin/dashboard/stats${qs}`);
     const data = unwrap<DashboardStats>(res);
     if (data) return { data };
     const raw = res.data as DashboardStats;
@@ -90,14 +95,26 @@ export async function fetchDashboardStats(): Promise<{ data: DashboardStats | nu
   } catch { return { data: null, error: 'Failed to load dashboard stats' }; }
 }
 
-export async function fetchDashboardActivity(limit = 10): Promise<{ data: ActivityItem[]; error?: string }> {
+export async function fetchRecentRegistrations(count = 5): Promise<{ data: RecentRegistration[]; error?: string }> {
   try {
-    const res = await api.get<unknown>(`/api/admin/dashboard/activity?limit=${limit}`);
-    const data = unwrap<ActivityItem[]>(res);
+    const res = await api.get<unknown>(`/api/admin/dashboard/recent-registrations?count=${count}`);
+    const data = unwrap<RecentRegistration[]>(res);
     if (data && Array.isArray(data)) return { data };
-    const raw = res.data as { data?: ActivityItem[] };
+    const raw = res.data as { data?: RecentRegistration[] };
     if (raw?.data && Array.isArray(raw.data)) return { data: raw.data };
-    if (Array.isArray(res.data)) return { data: res.data as ActivityItem[] };
+    if (Array.isArray(res.data)) return { data: res.data as RecentRegistration[] };
+    return { data: [] };
+  } catch { return { data: [] }; }
+}
+
+export async function fetchSystemAlerts(maxAlerts = 10): Promise<{ data: SystemAlert[]; error?: string }> {
+  try {
+    const res = await api.get<unknown>(`/api/admin/dashboard/alerts?maxAlerts=${maxAlerts}`);
+    const data = unwrap<SystemAlert[]>(res);
+    if (data && Array.isArray(data)) return { data };
+    const raw = res.data as { data?: SystemAlert[] };
+    if (raw?.data && Array.isArray(raw.data)) return { data: raw.data };
+    if (Array.isArray(res.data)) return { data: res.data as SystemAlert[] };
     return { data: [] };
   } catch { return { data: [] }; }
 }
@@ -203,31 +220,61 @@ export async function updateRegistrationDates(
 // REGISTRATION
 // ============================================================
 
-export async function fetchRegistrationStatus(): Promise<{ data: RegistrationStatus | null; error?: string }> {
+export async function fetchRegistrationSettings(semesterId?: number): Promise<{ data: RegistrationSettings | null; error?: string }> {
   try {
-    const res = await api.get<unknown>('/api/admin/registration/status');
-    const data = unwrap<RegistrationStatus>(res);
+    const qs = semesterId ? `?semesterId=${semesterId}` : '';
+    const res = await api.get<unknown>(`/api/registration-control/settings${qs}`);
+    const data = unwrap<RegistrationSettings>(res);
     if (data) return { data };
-    const raw = res.data as RegistrationStatus;
-    if (raw && typeof raw === 'object' && 'status' in raw) return { data: raw };
+    const raw = res.data as RegistrationSettings;
+    if (raw && typeof raw === 'object' && 'isOpen' in raw) return { data: raw };
     return { data: null, error: getError(res) };
-  } catch { return { data: null, error: 'Failed to load registration status' }; }
+  } catch { return { data: null, error: 'Failed to load registration settings' }; }
 }
 
-export async function openRegistration(form: OpenRegistrationForm): Promise<{ success: boolean; error?: string }> {
+export async function updateRegistrationSettings(form: UpdateRegistrationSettingsForm): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await api.post<unknown>('/api/admin/registration/open', form);
+    const res = await api.put<unknown>('/api/registration-control/settings', form);
     if (isSuccess(res)) return { success: true };
     return { success: false, error: getError(res) };
-  } catch { return { success: false, error: 'Failed to open registration' }; }
+  } catch { return { success: false, error: 'Failed to update registration settings' }; }
 }
 
-export async function closeRegistration(form: CloseRegistrationForm): Promise<{ success: boolean; error?: string }> {
+export async function openRegistrationWindow(form: OpenRegistrationWindowForm): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await api.post<unknown>('/api/admin/registration/close', form);
+    const res = await api.post<unknown>('/api/admin/registration/windows', form);
     if (isSuccess(res)) return { success: true };
     return { success: false, error: getError(res) };
-  } catch { return { success: false, error: 'Failed to close registration' }; }
+  } catch { return { success: false, error: 'Failed to open registration window' }; }
+}
+
+export async function closeRegistrationWindow(windowId: number): Promise<{ success: boolean; error?: string }> {
+  try {
+    const res = await api.post<unknown>(`/api/admin/registration/windows/${windowId}/close`, {});
+    if (isSuccess(res)) return { success: true };
+    return { success: false, error: getError(res) };
+  } catch { return { success: false, error: 'Failed to close registration window' }; }
+}
+
+export async function fetchRegistrationActivityLog(
+  params: RegistrationActivityLogParams = {}
+): Promise<{ data: RegistrationActivityLogResponse | null; error?: string }> {
+  try {
+    const qs = buildQS({
+      semesterId: params.semesterId,
+      fromDate: params.fromDate,
+      toDate: params.toDate,
+      status: params.status,
+      page: params.page ?? 1,
+      pageSize: params.pageSize ?? 50,
+    });
+    const res = await api.get<unknown>(`/api/registration-control/activity-log${qs}`);
+    const data = unwrap<RegistrationActivityLogResponse>(res);
+    if (data && Array.isArray(data.items)) return { data };
+    const raw = res.data as RegistrationActivityLogResponse;
+    if (raw && Array.isArray(raw.items)) return { data: raw };
+    return { data: null, error: getError(res) };
+  } catch { return { data: null, error: 'Failed to fetch activity log' }; }
 }
 
 // ============================================================
@@ -238,26 +285,93 @@ export async function fetchCourseInstances(
   params: CourseInstanceListParams = {}
 ): Promise<{ data: PaginatedResponse<CourseInstanceListItem> | null; error?: string }> {
   try {
+    // No standalone list endpoint exists — aggregate from course details
     const qs = buildQS({
-      semesterId: params.semesterId,
       departmentId: params.departmentId,
-      doctorId: params.doctorId,
       search: params.search,
-      page: params.page ?? 1,
-      pageSize: params.pageSize ?? 20,
+      pageSize: 200,
     });
-    const res = await api.get<unknown>(`/api/admin/course-instances${qs}`);
-    const raw = res.data as PaginatedResponse<CourseInstanceListItem>;
-    if (raw && Array.isArray(raw.items)) return { data: raw };
-    const wrapped = unwrap<PaginatedResponse<CourseInstanceListItem>>(res);
-    if (wrapped && Array.isArray(wrapped.items)) return { data: wrapped };
-    return { data: null, error: getError(res) };
+    const coursesRes = await api.get<unknown>(`/api/admin/courses${qs}`);
+
+    // Extract courses list from response
+    let courses: { id: number; code: string; name: string }[] = [];
+    const raw = coursesRes.data as ApiResponse<{ id: number; code: string; name: string }[]>;
+    if (raw && 'isSuccess' in raw && raw.isSuccess && Array.isArray(raw.data)) {
+      courses = raw.data;
+    } else if (raw && 'data' in raw && Array.isArray(raw.data)) {
+      courses = raw.data;
+    } else if (Array.isArray(coursesRes.data)) {
+      courses = coursesRes.data as { id: number; code: string; name: string }[];
+    }
+
+    // Fetch details for each course to get instances
+    const detailPromises = courses.map(c =>
+      api.get<unknown>(`/api/admin/courses/${c.id}`).catch(() => null)
+    );
+    const detailResults = await Promise.all(detailPromises);
+
+    const items: CourseInstanceListItem[] = [];
+    detailResults.forEach((res, idx) => {
+      if (!res) return;
+      const d = res.data as ApiResponse<{ instances?: Array<{ id: number; semesterName: string; doctorName: string; maxCapacity: number; currentEnrolled: number; isFull: boolean }> }>;
+      let detail = d?.data;
+      if (!detail && res.data && typeof res.data === 'object' && 'instances' in (res.data as object)) {
+        detail = res.data as typeof detail;
+      }
+      if (detail?.instances) {
+        for (const inst of detail.instances) {
+          items.push({
+            id: inst.id,
+            courseId: courses[idx].id,
+            courseCode: courses[idx].code,
+            courseName: courses[idx].name,
+            semesterId: 0,
+            semesterName: inst.semesterName,
+            doctorId: 0,
+            doctorName: inst.doctorName,
+            doctorTitle: 0,
+            doctorTitleDisplay: '',
+            maxCapacity: inst.maxCapacity,
+            currentEnrolled: inst.currentEnrolled,
+            enrollmentPercentage: inst.maxCapacity > 0 ? (inst.currentEnrolled / inst.maxCapacity) * 100 : 0,
+            status: inst.isFull ? 'Full' : 'Open',
+          });
+        }
+      }
+    });
+
+    // Apply client-side filters
+    let filtered = items;
+    if (params.doctorId) {
+      filtered = filtered.filter(i => i.doctorId === params.doctorId);
+    }
+
+    // Client-side pagination
+    const page = params.page ?? 1;
+    const pageSize = params.pageSize ?? 20;
+    const totalCount = filtered.length;
+    const totalPages = Math.ceil(totalCount / pageSize);
+    const start = (page - 1) * pageSize;
+    const pageItems = filtered.slice(start, start + pageSize);
+
+    return {
+      data: {
+        items: pageItems,
+        page,
+        pageSize,
+        totalCount,
+        totalPages,
+        hasPreviousPage: page > 1,
+        hasNextPage: page < totalPages,
+      },
+    };
   } catch { return { data: null, error: 'Failed to fetch course instances' }; }
 }
 
 export async function createCourseInstance(form: CreateCourseInstanceForm): Promise<{ id: number | null; error?: string }> {
   try {
-    const res = await api.post<unknown>('/api/admin/course-instances', form);
+    const { courseId, ...body } = form;
+    const res = await api.post<unknown>(`/api/admin/courses/${courseId}/instances`, body);
     const data = unwrap<{ id: number }>(res);
     if (data?.id) return { id: data.id };
     const raw = res.data as { id?: number };
@@ -267,17 +381,9 @@ export async function createCourseInstance(form: CreateCourseInstanceForm): Prom
   } catch { return { id: null, error: 'Failed to create course instance' }; }
 }
 
-export async function updateCourseInstance(id: number, form: UpdateCourseInstanceForm): Promise<{ success: boolean; error?: string }> {
-  try {
-    const res = await api.put<unknown>(`/api/admin/course-instances/${id}`, form);
-    if (isSuccess(res)) return { success: true };
-    return { success: false, error: getError(res) };
-  } catch { return { success: false, error: 'Failed to update course instance' }; }
-}
-
 export async function deleteCourseInstance(id: number): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await api.delete<unknown>(`/api/admin/course-instances/${id}`);
+    const res = await api.delete<unknown>(`/api/admin/courses/instances/${id}`);
     if (isSuccess(res)) return { success: true };
     return { success: false, error: getError(res) };
   } catch { return { success: false, error: 'Failed to delete course instance' }; }
@@ -299,11 +405,11 @@ export async function fetchCourseInstanceEnrollments(id: number): Promise<{ data
 
 export async function fetchSemesterOptions(): Promise<SemesterOption[]> {
   try {
-    const res = await api.get<unknown>('/api/admin/semesters');
-    const raw = res.data as { data?: SemesterOption[] } & ApiResponse<SemesterOption[]>;
-    if (raw && 'data' in raw && Array.isArray(raw.data)) return raw.data;
-    if (raw && 'isSuccess' in raw && raw.isSuccess && Array.isArray(raw.data)) return raw.data as SemesterOption[];
-    if (Array.isArray(res.data)) return res.data as SemesterOption[];
+    const res = await api.get<unknown>('/api/admin/academic-years/active/semesters');
+    const wrapped = unwrap<SemesterOption[]>(res);
+    if (wrapped && Array.isArray(wrapped)) return wrapped.map(s => ({ id: s.id, name: s.name }));
+    const raw = res.data as SemesterOption[];
+    if (Array.isArray(raw)) return raw.map(s => ({ id: s.id, name: s.name }));
     return [];
   } catch { return []; }
 }
@@ -311,23 +417,30 @@ export async function fetchSemesterOptions(): Promise<SemesterOption[]> {
 export async function fetchDepartmentOptions(): Promise<DepartmentOption[]> {
   try {
     const res = await api.get<unknown>('/api/admin/departments');
-    const raw = res.data as { data?: DepartmentOption[]; items?: DepartmentOption[] } & ApiResponse<DepartmentOption[]>;
-    if (raw?.items && Array.isArray(raw.items)) return raw.items.map(d => ({ id: d.id, name: d.name }));
-    if (raw && 'data' in raw && Array.isArray(raw.data)) return raw.data;
-    if (raw && 'isSuccess' in raw && raw.isSuccess && Array.isArray(raw.data)) return raw.data as DepartmentOption[];
-    if (Array.isArray(res.data)) return res.data as DepartmentOption[];
+    const wrapped = unwrap<{ id: number; description: string }[]>(res);
+    if (wrapped && Array.isArray(wrapped)) return wrapped.map(d => ({ id: d.id, name: d.description ?? String(d.id) }));
+    const raw = res.data as unknown as { id: number; description?: string; name?: string }[];
+    if (Array.isArray(raw)) return raw.map(d => ({ id: d.id, name: d.description ?? d.name ?? '' }));
     return [];
   } catch { return []; }
 }
 
 export async function fetchDoctorOptions(): Promise<DoctorOption[]> {
   try {
-    const res = await api.get<unknown>('/api/admin/users/doctors');
-    const raw = res.data as { data?: DoctorOption[]; items?: DoctorOption[] } & ApiResponse<DoctorOption[]>;
-    if (raw?.items && Array.isArray(raw.items)) return raw.items.map(d => ({ id: d.id, fullName: d.fullName }));
-    if (raw && 'data' in raw && Array.isArray(raw.data)) return raw.data;
-    if (raw && 'isSuccess' in raw && raw.isSuccess && Array.isArray(raw.data)) return raw.data as DoctorOption[];
-    if (Array.isArray(res.data)) return res.data as DoctorOption[];
+    const res = await api.get<unknown>('/api/doctors?pageSize=200');
+    // Paginated response: { items: [...] }
+    const paginated = res.data as { items?: { id: number; fullName: string }[] };
+    if (paginated && Array.isArray(paginated.items)) {
+      return paginated.items.map(d => ({ id: d.id, fullName: d.fullName }));
+    }
+    // Wrapped in ApiResponse
+    const apiRes = res.data as ApiResponse<{ items: { id: number; fullName: string }[] }>;
+    if (apiRes?.isSuccess && apiRes.data?.items) {
+      return apiRes.data.items.map(d => ({ id: d.id, fullName: d.fullName }));
+    }
+    // Fallback: direct array
+    const raw = res.data as unknown as DoctorOption[];
+    if (Array.isArray(raw)) return raw;
     return [];
   } catch { return []; }
 }

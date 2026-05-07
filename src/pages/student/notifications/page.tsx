@@ -225,7 +225,7 @@ export default function StudentNotifications() {
       {/* Pagination hint */}
       {data && data.notifications.totalPages > 1 && (
         <p className="text-center text-xs text-slate-400 mt-4">
-          Showing page {data.notifications.page} of {data.notifications.totalPages} ({data.notifications.totalCount} total)
+          Showing page {data.notifications.pageNumber} of {data.notifications.totalPages} ({data.notifications.totalCount} total)
         </p>
       )}
     </div>

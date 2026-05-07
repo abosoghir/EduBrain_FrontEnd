@@ -10,7 +10,6 @@ import type {
   StudentListParams,
   StudentDetail,
   CreateStudentForm,
-  CreateStudentResponse,
   UpdateStudentForm,
   UpdateStudentResponse,
   DepartmentOption,
@@ -44,6 +43,15 @@ function unwrap<T>(res: { data: ApiResponse<T> | T }): T | null {
   }
   // Direct response
   return res.data as T;
+}
+
+function isSuccess(res: { data: unknown }): boolean {
+  const d = res.data as ApiResponse<unknown>;
+  if (d && typeof d === 'object') {
+    if ('isSuccess' in d) return !!d.isSuccess;
+    if ('success' in d) return !!(d as { success?: boolean }).success;
+  }
+  return false;
 }
 
 function getErrorMessage(res: { data: unknown }): string {
@@ -99,20 +107,13 @@ export async function fetchStudentDetail(
 
 export async function createStudent(
   form: CreateStudentForm
-): Promise<{ data: CreateStudentResponse | null; error?: string }> {
+): Promise<{ success: boolean; error?: string }> {
   try {
-    const res = await api.post<ApiResponse<CreateStudentResponse>>('/api/admin/users/students', form);
-    const d = res.data as ApiResponse<CreateStudentResponse>;
-    const raw = res.data as unknown as { success?: boolean; data?: CreateStudentResponse; message?: string };
-    if (raw?.success && raw.data) {
-      return { data: raw.data };
-    }
-    if (d?.isSuccess && d?.hasData && d.data) {
-      return { data: d.data };
-    }
-    return { data: null, error: (d?.error?.description) || (raw as { message?: string })?.message || 'Create failed' };
+    const res = await api.post<unknown>('/api/users/students', form);
+    if (isSuccess(res)) return { success: true };
+    return { success: false, error: getErrorMessage(res) };
   } catch {
-    return { data: null, error: 'Failed to create student' };
+    return { success: false, error: 'Failed to create student' };
   }
 }
 
@@ -152,12 +153,16 @@ export async function deleteStudent(
 
 export async function fetchDepartments(): Promise<DepartmentOption[]> {
   try {
-    const res = await api.get<ApiResponse<DepartmentOption[]>>('/api/admin/departments');
+    const res = await api.get<ApiResponse<{ id: number; description: string }[]>>('/api/admin/departments');
     const data = unwrap(res);
-    if (data && Array.isArray(data)) return data;
+    if (data && Array.isArray(data)) {
+      return data.map((d) => ({ id: d.id, name: d.description ?? d.id.toString() }));
+    }
     // Try direct
-    const raw = res.data as unknown as DepartmentOption[];
-    if (Array.isArray(raw)) return raw;
+    const raw = res.data as unknown as { id: number; description?: string; name?: string }[];
+    if (Array.isArray(raw)) {
+      return raw.map((d) => ({ id: d.id, name: d.description ?? d.name ?? '' }));
+    }
     return [];
   } catch {
     return [];
@@ -166,9 +171,13 @@ export async function fetchDepartments(): Promise<DepartmentOption[]> {
 
 export async function fetchAdvisors(): Promise<AdvisorOption[]> {
   try {
-    const res = await api.get<ApiResponse<AdvisorOption[]>>('/api/admin/users/advisors');
-    const data = unwrap(res);
-    if (data && Array.isArray(data)) return data;
+    const res = await api.get<unknown>('/api/admin/users/advisors?pageSize=100');
+    // The API wraps in ApiResponse<{ items: [...] }>
+    const apiRes = res.data as ApiResponse<{ items: { id: number; fullName: string }[] }>;
+    if (apiRes?.isSuccess && apiRes.data?.items) {
+      return apiRes.data.items.map((a) => ({ id: a.id, fullName: a.fullName }));
+    }
+    // Fallback: maybe direct array
     const raw = res.data as unknown as AdvisorOption[];
     if (Array.isArray(raw)) return raw;
     return [];

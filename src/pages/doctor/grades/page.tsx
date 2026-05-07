@@ -1,18 +1,15 @@
-import React, { useState, useCallback, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { fetchDoctorCourses, fetchCourseGrades, updateStudentGrades, exportCourseGrades } from '@/lib/doctorPortalApi';
 import type { DoctorCourse, DoctorGradesData, DoctorGradeStudent, GradeWeights, SubmitGradesRequest } from '@/types/doctor';
+import { GRADE_LABELS, Grade } from '@/lib/enums';
 
-// Grade enum → letter
-const GRADE_LETTER: Record<number, string> = {
-  0: 'A+', 1: 'A', 2: 'A−', 3: 'B+', 4: 'B', 5: 'C+', 6: 'C', 7: 'D+', 8: 'D', 9: 'D−', 10: 'F',
-};
-
+// Grade enum → color
 const GRADE_COLOR: Record<number, string> = {
   0: 'text-emerald-600', 1: 'text-emerald-600', 2: 'text-emerald-500',
-  3: 'text-blue-600', 4: 'text-blue-500',
-  5: 'text-amber-600', 6: 'text-amber-500',
-  7: 'text-orange-500', 8: 'text-orange-400', 9: 'text-orange-400',
-  10: 'text-red-600',
+  3: 'text-blue-600', 4: 'text-blue-500', 5: 'text-blue-400',
+  6: 'text-amber-600', 7: 'text-amber-500', 8: 'text-amber-400',
+  9: 'text-orange-500', 10: 'text-orange-400',
+  11: 'text-red-600',
 };
 
 type GradeField = 'midterm' | 'final' | 'practical' | 'quizzes' | 'oral';
@@ -34,12 +31,12 @@ export default function DoctorGrades() {
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
 
   // Load courses on mount
-  useState(() => {
+  useEffect(() => {
     fetchDoctorCourses().then(({ data }) => {
       setCourses(data?.courses ?? []);
       setCoursesLoaded(true);
     });
-  });
+  }, []);
 
   const loadGrades = useCallback(async (courseInstanceId: number) => {
     setGradesLoading(true);
@@ -265,7 +262,7 @@ export default function DoctorGrades() {
                         <td className="px-4 py-3 text-center">
                           {s.letterGrade !== null && s.letterGrade !== undefined ? (
                             <span className={`text-sm font-bold ${GRADE_COLOR[s.letterGrade] ?? 'text-slate-500'}`}>
-                              {GRADE_LETTER[s.letterGrade] ?? '—'}
+                              {GRADE_LABELS[s.letterGrade as Grade] ?? '—'}
                             </span>
                           ) : (
                             <span className="text-xs text-slate-400">—</span>

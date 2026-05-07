@@ -38,7 +38,6 @@ export interface StudentDashboardData {
   studentName: string;
   academicYear: string;
   yearLevel: number;
-  yearLevelDisplay: string;
   registeredCoursesCount: number;
   totalCreditHours: number;
   registeredHours: number;
@@ -53,13 +52,16 @@ export interface StudentDashboardData {
 // ---- Registration Status (GET /api/student/registration/status) ----
 
 export interface RegistrationStatus {
-  isOpen: boolean;
-  opensOn: string | null;
-  closesOn: string | null;
+  status: number;
+  registrationOpenDate: string | null;
+  registrationCloseDate: string | null;
+  statusMessage: string;
   registeredHours: number;
   maxCreditHours: number;
   minCreditHours: number;
   remainingHours: number;
+  canRegisterMore: boolean;
+  meetsMinimumHours: boolean;
 }
 
 // ---- Available Courses (GET /api/student/registration/available-courses) ----
@@ -92,6 +94,25 @@ export interface AvailableCoursesResponse {
   courses: AvailableCourse[];
 }
 
+// ---- My Registered Courses (GET /api/student/registration/my-courses) ----
+
+export interface RegistrationRegisteredCourse {
+  enrollmentId: number;
+  courseInstanceId: number;
+  courseCode: string;
+  courseName: string;
+  creditHours: number;
+  doctorName: string;
+  status: number;
+  enrollmentDate: string;
+  schedule: AvailableCourseScheduleSlot[];
+}
+
+export interface RegistrationRegisteredCoursesResponse {
+  totalCreditHours: number;
+  courses: RegistrationRegisteredCourse[];
+}
+
 // ---- Register for Course (POST /api/student/registration/register) ----
 
 export interface RegisterCourseRequest {
@@ -100,18 +121,15 @@ export interface RegisterCourseRequest {
 
 export interface RegisterCourseResponse {
   enrollmentId: number;
-  courseCode: string;
-  courseName: string;
   status: number;
-  registrationDate: string;
+  message: string;
 }
 
 // ---- Drop Course (DELETE /api/student/registration/drop/{enrollmentId}) ----
 
 export interface DropCourseResponse {
   enrollmentId: number;
-  newTotalHours: number;
-  belowMinimumWarning: boolean;
+  message: string;
 }
 
 // ---- My Courses (GET /api/student/courses) ----
@@ -137,45 +155,29 @@ export interface StudentCoursesResponse {
 
 // ---- Course Detail (GET /api/student/courses/{courseInstanceId}) ----
 
-export interface CourseGradeWeights {
-  midterm: number;
-  final: number;
-  practical: number;
-  quizzes: number;
-  oral: number;
-}
-
-export interface CourseCurrentGrades {
+export interface StudentCourseDetail {
+  courseInstanceId: number;
+  courseCode: string;
+  courseName: string;
+  description: string;
+  creditHours: number;
+  doctorName: string;
+  doctorAvatarUrl: string | null;
+  enrollmentId: number;
+  enrollmentStatus: number;
+  enrollmentDate: string;
   midterm: number | null;
   final: number | null;
   practical: number | null;
   quizzes: number | null;
   oral: number | null;
-  totalScore: number | null;
-  letterGrade: number | null;  // Grade enum
-  status: string;              // "In Progress" | "Passed" | "Failed"
-}
-
-export interface CourseAttendanceSummary {
+  totalGrade: number | null;
+  letterGrade: number | null;
   totalSessions: number;
   presentCount: number;
   absentCount: number;
   attendancePercentage: number;
-  hasWarning: boolean;
-}
-
-export interface StudentCourseDetail {
-  courseInstanceId: number;
-  courseCode: string;
-  courseName: string;
-  creditHours: number;
-  doctorName: string;
-  doctorAvatarUrl: string | null;
-  enrollmentDate: string;
-  departmentName: string;
-  gradeWeights: CourseGradeWeights;
-  currentGrades: CourseCurrentGrades;
-  attendance: CourseAttendanceSummary;
+  hasAttendanceWarning: boolean;
 }
 
 // ---- Course Materials (GET /api/student/courses/{courseInstanceId}/materials) ----
@@ -295,6 +297,25 @@ export interface StudentGradesData {
   totalCreditHoursEarned: number;
 }
 
+// ---- Course Grades Detailed (GET /api/student/courses/{courseInstanceId}/grades) ----
+
+export interface CourseGradeComponent {
+  componentName: string;
+  score: number;
+  maxScore: number;
+  percentage: number;
+}
+
+export interface CourseGradesDetailed {
+  courseInstanceId: number;
+  courseName: string;
+  components: CourseGradeComponent[];
+  totalScore: number;
+  letterGrade: number; // Grade enum
+  gradePoints: number;
+  status: string;
+}
+
 // ---- GPA History (GET /api/student/grades/gpa-history) ----
 
 export interface GpaHistoryEntry {
@@ -392,7 +413,7 @@ export interface StudentFeesData {
   amountPaid: number;
   remainingAmount: number;
   paidPercentage: number;
-  paymentStatus: number;   // 0=Paid, 1=Unpaid, 2=PartiallyPaid
+  paymentStatus: number;   // 0=Paid, 1=PartiallyPaid, 2=Unpaid
   dueDate: string | null;
   isOverdue: boolean;
   feeBreakdown: FeeBreakdownItem[];
@@ -416,10 +437,11 @@ export interface StudentNotification {
 
 export interface StudentNotificationsPage {
   items: StudentNotification[];
-  page: number;
-  pageSize: number;
-  totalCount: number;
+  pageNumber: number;
   totalPages: number;
+  totalCount: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
 }
 
 export interface StudentNotificationsData {
@@ -461,4 +483,10 @@ export interface UpdateStudentProfileRequest {
   city?: string;
   fatherPhone?: string;
   fatherJob?: string;
+}
+
+export interface ChangeStudentPasswordRequest {
+  currentPassword?: string;
+  newPassword?: string;
+  confirmPassword?: string;
 }

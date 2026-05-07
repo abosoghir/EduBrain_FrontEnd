@@ -43,7 +43,7 @@ export default function AdminAdvisors() {
     setSubmitting(true);
     const res = await createAdvisor(form);
     setSubmitting(false);
-    if (res.data) { setToast(`Advisor created! Code: ${res.data.advisorCode}, Temp Password: ${res.data.temporaryPassword}`); setShowCreate(false); loadData(); }
+    if (res.success) { setToast('Advisor created successfully'); setShowCreate(false); loadData(); }
     else setToast(res.error || 'Create failed');
   };
 

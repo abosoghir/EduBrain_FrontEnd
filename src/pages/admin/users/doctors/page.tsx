@@ -60,7 +60,7 @@ export default function AdminDoctors() {
     setSubmitting(true);
     const res = await createDoctor(form);
     setSubmitting(false);
-    if (res.data) { setToast(`Doctor created! Code: ${res.data.doctorCode}, Temp Password: ${res.data.temporaryPassword}`); setShowCreate(false); loadData(); }
+    if (res.success) { setToast('Doctor created successfully'); setShowCreate(false); loadData(); }
     else setToast(res.error || 'Create failed');
   };
 
@@ -118,7 +118,7 @@ export default function AdminDoctors() {
         </div>
         <select value={deptFilter} onChange={e => onFilterChange(setDeptFilter, e.target.value)} className={selectCls}>
           <option value="">All Departments</option>
-          {departments.map(d => <option key={d.id} value={d.id}>{d.description}</option>)}
+          {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
         </select>
         <select value={titleFilter} onChange={e => onFilterChange(setTitleFilter, e.target.value)} className={selectCls}>
           {TITLE_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
