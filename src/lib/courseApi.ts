@@ -57,9 +57,9 @@ export async function fetchCourseDetail(
 ): Promise<{ data: CourseDetail | null; error?: string }> {
   try {
     const res = await api.get<unknown>(`/api/admin/courses/${id}`);
-    const raw = res.data as CourseDetail & ApiResponse<CourseDetail>;
+    const raw = res.data as any;
     if (raw && typeof raw === 'object' && 'prerequisites' in raw) return { data: raw as CourseDetail };
-    if (raw && 'isSuccess' in raw && raw.isSuccess && raw.data) return { data: raw.data as unknown as CourseDetail };
+    if (raw && 'isSuccess' in raw && raw.isSuccess && raw.data) return { data: raw.data as CourseDetail };
     return { data: null, error: getErrorMessage(res) };
   } catch {
     return { data: null, error: 'Failed to fetch course details' };
@@ -170,11 +170,18 @@ export async function deleteCourseInstance(
 
 export async function fetchDepartments(): Promise<DepartmentOption[]> {
   try {
-    const res = await api.get<unknown>('/api/admin/departments');
-    const raw = res.data as { data?: DepartmentOption[] } & ApiResponse<DepartmentOption[]>;
-    if (raw && 'data' in raw && Array.isArray(raw.data)) return raw.data;
-    if (raw && 'isSuccess' in raw && raw.isSuccess && Array.isArray(raw.data)) return raw.data;
-    if (Array.isArray(res.data)) return res.data as DepartmentOption[];
-    return [];
+    type DeptRaw = { id: number; description?: string; name?: string };
+    const res = await api.get<ApiResponse<DeptRaw[]>>('/api/admin/departments');
+    const raw = res.data as { data?: DeptRaw[] } & ApiResponse<DeptRaw[]>;
+    
+    let items: DeptRaw[] = [];
+    if (raw && 'data' in raw && Array.isArray(raw.data)) items = raw.data;
+    else if (raw && 'isSuccess' in raw && raw.isSuccess && Array.isArray(raw.data)) items = raw.data;
+    else if (Array.isArray(res.data)) items = res.data as DeptRaw[];
+
+    return items.map(d => ({
+      id: d.id,
+      name: d.description ?? d.name ?? String(d.id)
+    }));
   } catch { return []; }
 }

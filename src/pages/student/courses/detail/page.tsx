@@ -52,7 +52,7 @@ export default function StudentCourseDetail() {
     setLoadingTab('materials');
     try {
       const res = await fetchStudentCourseMaterials(courseInstanceId);
-      setMaterialWeeks(res.weeks);
+      setMaterialWeeks(res.weeklyMaterials || []);
     } catch {
       setMaterialWeeks([]);
     } finally {
@@ -155,14 +155,14 @@ export default function StudentCourseDetail() {
 
         <div className="mt-4 flex items-center gap-4 text-[10px]">
           <span className={`flex items-center gap-1 px-2 py-1 rounded-md ${
-            course.attendancePercentage >= 85
+            (course.attendancePercentage ?? 0) >= 85
               ? 'bg-emerald-50 text-emerald-600'
-              : course.attendancePercentage >= 75
+              : (course.attendancePercentage ?? 0) >= 75
               ? 'bg-amber-50 text-amber-600'
               : 'bg-red-50 text-red-600'
           }`}>
             <i className="ri-check-double-line" />
-            {course.attendancePercentage.toFixed(1)}% attendance
+            {(course.attendancePercentage ?? 0).toFixed(1)}% attendance
           </span>
           <span className="text-slate-400">
             {course.presentCount}/{course.totalSessions} sessions
@@ -272,9 +272,9 @@ export default function StudentCourseDetail() {
               </div>
               <div className="text-center mb-6">
                 <p className={`text-3xl font-bold ${
-                  attendanceDetail.attendancePercentage >= 85 ? 'text-emerald-600' :
-                  attendanceDetail.attendancePercentage >= 75 ? 'text-amber-600' : 'text-red-600'
-                }`}>{attendanceDetail.attendancePercentage.toFixed(1)}%</p>
+                  (attendanceDetail.attendancePercentage ?? 0) >= 85 ? 'text-emerald-600' :
+                  (attendanceDetail.attendancePercentage ?? 0) >= 75 ? 'text-amber-600' : 'text-red-600'
+                }`}>{(attendanceDetail.attendancePercentage ?? 0).toFixed(1)}%</p>
                 <p className="text-xs text-slate-400 mt-1">Overall Attendance Rate</p>
               </div>
               <div className="overflow-x-auto">
@@ -342,19 +342,20 @@ export default function StudentCourseDetail() {
                         <div className="flex-1 min-w-0">
                           <p className="text-sm font-medium text-slate-700 truncate">{m.title}</p>
                           <p className="text-[10px] text-slate-400">
-                            {MATERIAL_TYPE_LABELS[m.type as 0 | 1 | 2]} · {new Date(m.createdOn).toLocaleDateString()}
-                            {m.downloadCount > 0 && ` · ${m.downloadCount} downloads`}
+                            {MATERIAL_TYPE_LABELS[m.type as 0 | 1 | 2]} · {new Date(m.createdAt).toLocaleDateString()}
                           </p>
                         </div>
-                        <a
-                          href={m.contentUrl}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-emerald-50 flex items-center justify-center border border-gray-100 transition-colors shrink-0"
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          <i className={`${m.type === 2 ? 'ri-external-link-line' : 'ri-download-line'} text-slate-400 text-xs`} />
-                        </a>
+                        {m.contentUrl && (
+                          <a
+                            href={m.contentUrl}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-emerald-50 flex items-center justify-center border border-gray-100 transition-colors shrink-0"
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            <i className={`${m.type === 2 ? 'ri-external-link-line' : 'ri-download-line'} text-slate-400 text-xs`} />
+                          </a>
+                        )}
                       </div>
                     ))}
                   </div>

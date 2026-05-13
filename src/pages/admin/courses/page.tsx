@@ -30,6 +30,7 @@ export default function AdminCourses() {
   const emptyCreate: CreateCourseForm = {
     name: '', code: '', description: '', creditHours: 3, theoryHours: 2, practicalHours: 2,
     price: undefined, pricePerCreditHour: undefined, courseType: 0, passingGrade: 50,
+    departmentIds: [],
   };
   const [createForm, setCreateForm] = useState<CreateCourseForm>(emptyCreate);
   const [editForm, setEditForm] = useState<UpdateCourseForm>({});
@@ -247,6 +248,29 @@ export default function AdminCourses() {
                   </select></div>
                 <div><label className="block text-xs font-medium text-slate-600 mb-1">Passing Grade *</label>
                   <input type="number" required min={0} max={100} step={0.1} value={createForm.passingGrade} onChange={e => setCreateForm(p => ({ ...p, passingGrade: Number(e.target.value) }))} className={inputCls} /></div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-slate-600 mb-1">Assign to Departments</label>
+                <div className="grid grid-cols-2 gap-2 mt-2 max-h-32 overflow-y-auto p-2 border border-slate-200 rounded-lg bg-slate-50">
+                  {departments.map(d => (
+                    <label key={d.id} className="flex items-center gap-2 text-sm text-slate-700 cursor-pointer">
+                      <input 
+                        type="checkbox" 
+                        checked={(createForm.departmentIds || []).includes(d.id)}
+                        onChange={(e) => {
+                          const checked = e.target.checked;
+                          setCreateForm(prev => {
+                            const current = prev.departmentIds || [];
+                            if (checked) return { ...prev, departmentIds: [...current, d.id] };
+                            return { ...prev, departmentIds: current.filter(id => id !== d.id) };
+                          });
+                        }}
+                        className="rounded text-slate-700 focus:ring-slate-400"
+                      />
+                      <span className="truncate" title={d.name}>{d.name}</span>
+                    </label>
+                  ))}
+                </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
                 <div><label className="block text-xs font-medium text-slate-600 mb-1">Price</label>

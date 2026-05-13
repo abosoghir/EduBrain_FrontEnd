@@ -49,7 +49,162 @@ export interface StudentDashboardData {
   upcomingExams: StudentDashboardExam[];
 }
 
-// ---- Student Registration (API Integration Student Course Registration) ----
+// ---- Student Registration (aligned with actual backend DTOs) ----
+
+// GET /api/student/registration/status → GetRegistrationStatusResponse
+export interface RegistrationStatusData {
+  status: number;  // RegistrationStatus: 0=Open, 1=Closed
+  registrationOpenDate: string | null;
+  registrationCloseDate: string | null;
+  statusMessage: string | null;
+  registeredHours: number;
+  maxCreditHours: number;
+  minCreditHours: number;
+  remainingHours: number;  // computed on backend
+  canRegisterMore: boolean; // computed on backend
+  meetsMinimumHours: boolean; // computed on backend
+}
+
+// Prerequisite info from GetAvailableCourses
+export interface PrerequisiteInfo {
+  courseId: number;
+  courseCode: string;
+  courseName: string;
+}
+
+// Schedule entry from GetAvailableCourses
+export interface ScheduleEntry {
+  day: number;  // DayOfWeek: 0=Sunday...6=Saturday
+  startTime: string;  // "HH:mm:ss"
+  endTime: string;    // "HH:mm:ss"
+  type: number; // ScheduleType: 0=Lecture, 1=Lab, 2=Tutorial
+}
+
+// GET /api/student/registration/available-courses → AvailableCourseDto
+export interface AvailableCourse {
+  courseInstanceId: number;
+  courseId: number;
+  courseCode: string;
+  courseName: string;
+  creditHours: number;
+  courseType: number; // CourseType: 0=Compulsory, 1=Elective
+  doctorName: string;
+  schedule: ScheduleEntry[];
+  maxCapacity: number;
+  currentEnrolled: number;
+  seatsRemaining: number;  // computed
+  enrollmentPercentage: number;  // computed
+  availabilityStatus: number; // CourseAvailabilityStatus: 0=Open, 1=AlmostFull, 2=Full, 3=WaitlistAvailable
+  isAlreadyRegistered: boolean;
+  hasPrerequisites: boolean;
+  prerequisitesMet: boolean;
+  unmetPrerequisites: PrerequisiteInfo[];
+}
+
+// GET /api/student/courses/registered → RegisteredCourseDto
+export interface RegisteredCourse {
+  enrollmentId: number;
+  courseInstanceId: number;
+  courseCode: string;
+  courseName: string;
+  creditHours: number;
+  doctorName: string;
+  status: number; // EnrollmentStatus
+  enrollmentDate: string;
+  schedule: ScheduleEntry[];
+}
+
+export interface RegisteredCoursesData {
+  totalCreditHours: number;
+  courses: RegisteredCourse[];
+}
+
+// POST /api/student/registration/validate-batch → BatchValidationResultDto
+export interface ScheduleConflict {
+  courseInstanceId1: number;
+  courseName1: string;
+  courseInstanceId2: number;
+  courseName2: string;
+  conflictDay: number;
+  overlapStart: string;
+  overlapEnd: string;
+}
+
+export interface CourseValidationItem {
+  courseInstanceId: number;
+  courseName: string;
+  isValid: boolean;
+  predictedStatus: number; // EnrollmentStatus
+  errors: string[];
+}
+
+export interface BatchValidationResult {
+  isValid: boolean;
+  totalCreditHours: number;
+  maxCreditHours: number;
+  minCreditHours: number;
+  currentRegisteredHours: number;
+  creditHoursExceeded: boolean;
+  scheduleConflicts: ScheduleConflict[];
+  duplicateCourses: string[];
+  unmetPrerequisites: string[];
+  unavailableCourses: string[];
+  courseResults: CourseValidationItem[];
+}
+
+// POST /api/student/registration/submit → SubmitRegistrationResponse
+export interface SubmitRegistrationItemResult {
+  courseInstanceId: number;
+  courseName: string;
+  enrollmentId: number;
+  status: number; // EnrollmentStatus
+  message: string;
+}
+
+export interface SubmitRegistrationResponse {
+  success: boolean;
+  message: string;
+  totalRegistered: number;
+  totalWaitlisted: number;
+  results: SubmitRegistrationItemResult[];
+}
+
+// Client-side draft state (localStorage-backed)
+export interface DraftCourse {
+  courseInstanceId: number;
+  courseId: number;
+  courseCode: string;
+  courseName: string;
+  creditHours: number;
+  courseType: number;
+  doctorName: string;
+  schedule: ScheduleEntry[];
+  maxCapacity: number;
+  currentEnrolled: number;
+  availabilityStatus: number;
+}
+
+// ---- Legacy types kept for backward compatibility ----
+// (used in old registration page sections that haven't been refactored yet)
+
+export interface StudentRegistrationStatus {
+  studentId: number;
+  studentCode: string;
+  studentName: string;
+  studentEmail: string;
+  studentYear: number;
+  semesterId: number;
+  semesterName: string;
+  registrationStatus: number;
+  registrationStatusDisplay: string;
+  isRegistrationOpen: boolean;
+  registrationCloseDate: string | null;
+  daysRemaining: number;
+  creditHoursSummary: CreditHoursSummary;
+  enrollments: Enrollment[];
+  cartItems: CartItem[];
+  notifications: RegistrationNotification[];
+}
 
 export interface CreditHoursSummary {
   completedCredits: number;
@@ -68,53 +223,6 @@ export interface RegistrationNotification {
   createdAt?: string;
 }
 
-export interface StudentRegistrationStatus {
-  studentId: number;
-  studentCode: string;
-  studentName: string;
-  studentEmail: string;
-  studentYear: number;
-  semesterId: number;
-  semesterName: string;
-  registrationStatus: number;  // 0=Open, 1=Closed
-  registrationStatusDisplay: string;
-  isRegistrationOpen: boolean;
-  registrationCloseDate: string | null;
-  daysRemaining: number;
-  creditHoursSummary: CreditHoursSummary;
-  enrollments: Enrollment[];
-  cartItems: CartItem[];
-  notifications: RegistrationNotification[];
-}
-
-export interface Prerequisite {
-  courseId: number;
-  courseCode: string;
-  courseName: string;
-  completed: boolean;
-}
-
-export interface Schedule {
-  days: string[];
-  startTime: string;
-  endTime: string;
-  room: string;
-}
-
-export interface Section {
-  sectionId: number;
-  sectionName: string;
-  instructorId: number;
-  instructorName: string;
-  schedule: Schedule;
-  capacity: number;
-  enrolled: number;
-  availableSeats: number;
-  isFull: boolean;
-  waitlistAvailable: boolean;
-  currentWaitlistCount: number;
-}
-
 export interface CourseCatalogItem {
   courseId: number;
   courseCode: string;
@@ -124,8 +232,8 @@ export interface CourseCatalogItem {
   departmentName: string;
   creditHours: number;
   level: number;
-  prerequisites: Prerequisite[];
-  sections: Section[];
+  prerequisites: { courseId: number; courseCode: string; courseName: string; completed: boolean }[];
+  sections: { sectionId: number; sectionName: string; instructorId: number; instructorName: string; schedule: { days: string[]; startTime: string; endTime: string; room: string }; capacity: number; enrolled: number; availableSeats: number; isFull: boolean; waitlistAvailable: boolean; currentWaitlistCount: number }[];
 }
 
 export interface CartItem {
@@ -136,7 +244,7 @@ export interface CartItem {
   sectionId: number;
   sectionName: string;
   instructorName: string;
-  schedule: Schedule;
+  schedule: { days: string[]; startTime: string; endTime: string; room: string };
   creditHours: number;
   addedAt: string;
   willEnrollAs: string;
@@ -144,30 +252,15 @@ export interface CartItem {
   waitlistPosition?: number;
 }
 
-export interface CartSummary {
-  totalCourses: number;
-  totalCredits: number;
-  minRequiredCredits: number;
-  maxAllowedCredits: number;
-  meetsMinimum: boolean;
-  withinMaximum: boolean;
-  conflicts: any[];
-}
-
 export interface CartData {
   cartId: number;
   items: CartItem[];
-  summary: CartSummary;
+  summary: { totalCourses: number; totalCredits: number; minRequiredCredits: number; maxAllowedCredits: number; meetsMinimum: boolean; withinMaximum: boolean; conflicts: any[] };
 }
 
 export interface AddToCartRequest {
   courseId: number;
   sectionId: number;
-}
-
-export interface Attendance {
-  // Attendance object shape if needed, otherwise 'any'
-  [key: string]: any;
 }
 
 export interface Enrollment {
@@ -179,9 +272,9 @@ export interface Enrollment {
   sectionName: string;
   instructorName: string;
   instructorEmail: string;
-  schedule: Schedule;
+  schedule: { days: string[]; startTime: string; endTime: string; room: string };
   creditHours: number;
-  status: number; // EnrollmentStatus
+  status: number;
   statusDisplay: string;
   enrolledAt: string;
   dropDeadline: string | null;
@@ -189,7 +282,7 @@ export interface Enrollment {
   isWaitlisted: boolean;
   waitlistPosition: number | null;
   grade: string | null;
-  attendance: Attendance | null;
+  attendance: { [key: string]: any } | null;
 }
 
 export interface EnrollmentsData {
@@ -216,7 +309,7 @@ export interface StudentCourse {
   creditHours: number;
   doctorName: string;
   doctorAvatarUrl: string | null;
-  attendancePercentage: number;
+  attendancePercentage?: number | null;
   currentGrade: number | null;
   status: number;          // EnrollmentStatus: 0=Enrolled, 1=Waitlisted
 }
@@ -250,7 +343,7 @@ export interface StudentCourseDetail {
   totalSessions: number;
   presentCount: number;
   absentCount: number;
-  attendancePercentage: number;
+  attendancePercentage?: number | null;
   hasAttendanceWarning: boolean;
 }
 
@@ -260,19 +353,22 @@ export interface StudentCourseMaterial {
   materialId: number;
   title: string;
   type: number;            // MaterialType: 1=File, 2=Link
-  contentUrl: string;
-  createdOn: string;
-  downloadCount: number;
-  isVisible: boolean;
+  contentUrl: string | null;
+  createdAt: string;
+  isLocked: boolean;
 }
 
 export interface StudentCourseMaterialWeek {
   weekNumber: number;
+  weekTitle: string;
   materials: StudentCourseMaterial[];
+  isLocked: boolean;
 }
 
 export interface StudentCourseMaterialsResponse {
-  weeks: StudentCourseMaterialWeek[];
+  courseInstanceId: number;
+  courseName: string;
+  weeklyMaterials: StudentCourseMaterialWeek[];
 }
 
 // ---- Course Attendance Detail (GET /api/student/courses/{courseInstanceId}/attendance) ----
@@ -292,7 +388,7 @@ export interface CourseAttendanceDetail {
   presentCount: number;
   absentCount: number;
   excusedCount: number;
-  attendancePercentage: number;
+  attendancePercentage?: number | null;
   hasWarning: boolean;
   sessions: StudentAttendanceSession[];
 }
@@ -413,7 +509,7 @@ export interface CourseAttendanceOverview {
   courseName: string;
   attendedSessions: number;
   totalSessions: number;
-  attendancePercentage: number;
+  attendancePercentage?: number | null;
   statusBadge: number;     // 0=Normal(>=85%), 1=Warning(75-84%), 2=Danger(<75%)
 }
 

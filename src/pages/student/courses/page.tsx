@@ -130,8 +130,8 @@ export default function StudentCourses() {
               </div>
               <div className="bg-gray-50 rounded-lg p-2.5">
                 <p className="text-[10px] text-slate-400 mb-0.5">Attendance</p>
-                <p className={`text-sm font-bold ${attendanceBadge(course.attendancePercentage).split(' ')[0]}`}>
-                  {course.attendancePercentage.toFixed(1)}
+                <p className={`text-sm font-bold ${attendanceBadge(course.attendancePercentage ?? 0).split(' ')[0]}`}>
+                  {(course.attendancePercentage ?? 0).toFixed(1)}
                   <span className="text-[10px] font-normal text-slate-400">%</span>
                 </p>
               </div>
@@ -142,13 +142,13 @@ export default function StudentCourses() {
               <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
                 <div
                   className={`h-full rounded-full transition-all ${
-                    course.attendancePercentage >= 85
+                    (course.attendancePercentage ?? 0) >= 85
                       ? 'bg-emerald-500'
-                      : course.attendancePercentage >= 75
+                      : (course.attendancePercentage ?? 0) >= 75
                       ? 'bg-amber-500'
                       : 'bg-red-500'
                   }`}
-                  style={{ width: `${Math.min(course.attendancePercentage, 100)}%` }}
+                  style={{ width: `${Math.min((course.attendancePercentage ?? 0), 100)}%` }}
                 />
               </div>
             </div>

@@ -305,6 +305,7 @@ export interface CreateCourseForm {
   pricePerCreditHour?: number | null;
   courseType: number;
   passingGrade: number;
+  departmentIds?: number[];
 }
 
 // Update Course (PUT /api/admin/courses/{id})

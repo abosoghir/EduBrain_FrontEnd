@@ -66,7 +66,7 @@ export async function apiFetch<T>(endpoint: string, options?: { method?: string;
       const refreshResponse = await fetch(`${BASE_URL}/auth/refresh-token`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ refreshToken: refreshTokenValue }),
+        body: JSON.stringify({ token, refreshToken: refreshTokenValue }),
       });
       const refreshData = await refreshResponse.json();
       if (refreshData?.isSuccess && refreshData?.hasData) {

@@ -1,23 +1,14 @@
 import { api } from './api';
 import type { ApiResponse } from './api';
-import { PaginatedResponse } from '@/types/admin';
-import {
-  StudentRegistrationStatus,
-  CourseCatalogItem,
-  CartData,
-  AddToCartRequest,
-  EnrollmentsData,
+import type {
+  RegistrationStatusData,
+  AvailableCourse,
+  RegisteredCoursesData,
+  BatchValidationResult,
+  SubmitRegistrationResponse,
 } from '@/types/student';
 
-function buildQueryString(params: Record<string, unknown>): string {
-  const parts: string[] = [];
-  for (const [key, value] of Object.entries(params)) {
-    if (value !== undefined && value !== null && value !== '') {
-      parts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`);
-    }
-  }
-  return parts.length > 0 ? `?${parts.join('&')}` : '';
-}
+// --- Unwrap helpers (same pattern as existing API modules) ---
 
 function unwrap<T>(res: { data: ApiResponse<T> | T }): T | null {
   const d = res.data as ApiResponse<T>;
@@ -34,73 +25,69 @@ function getErrorMessage(res: { data: unknown }): string {
   return 'Operation failed';
 }
 
-export async function fetchRegistrationStatus(): Promise<StudentRegistrationStatus | null> {
-  const res = await api.get<ApiResponse<StudentRegistrationStatus>>('/api/student/registration/status');
+// --- Registration Status ---
+
+export async function fetchRegistrationStatus(): Promise<RegistrationStatusData | null> {
+  const res = await api.get<ApiResponse<RegistrationStatusData>>('/api/student/registration/status');
   return unwrap(res);
 }
 
-export interface CourseCatalogParams {
-  department?: string;
-  search?: string;
-  page?: number;
-  pageSize?: number;
+// --- Available Courses (smart filtered) ---
+
+export interface AvailableCoursesParams {
+  departmentId?: number;
+  electiveOnly?: boolean;
 }
 
-export async function fetchCourseCatalog(params?: CourseCatalogParams): Promise<PaginatedResponse<CourseCatalogItem>> {
-  const qs = params ? buildQueryString(params as any) : '';
-  const res = await api.get<ApiResponse<PaginatedResponse<CourseCatalogItem>>>(`/api/student/registration/courses${qs}`);
+export async function fetchAvailableCourses(params?: AvailableCoursesParams): Promise<AvailableCourse[]> {
+  const parts: string[] = [];
+  if (params?.departmentId) parts.push(`departmentId=${params.departmentId}`);
+  if (params?.electiveOnly) parts.push('electiveOnly=true');
+  const qs = parts.length > 0 ? `?${parts.join('&')}` : '';
+  const res = await api.get<ApiResponse<{ courses: AvailableCourse[] }>>(`/api/student/registration/available-courses${qs}`);
   const data = unwrap(res);
-  return data || { items: [], pageNumber: 1, totalPages: 1, totalCount: 0, hasPreviousPage: false, hasNextPage: false } as any;
+  return data?.courses ?? [];
 }
 
-export async function addToCart(data: AddToCartRequest): Promise<{ success: boolean; message: string }> {
-  const res = await api.post<ApiResponse<any>>('/api/student/registration/cart', data);
-  const d = res.data as ApiResponse<any> & { message?: string };
-  if (d?.isSuccess) return { success: true, message: d.message || 'Added to cart' };
-  throw new Error(getErrorMessage(res));
-}
+// --- My Registered Courses ---
 
-export async function fetchCart(): Promise<CartData | null> {
-  const res = await api.get<ApiResponse<CartData>>('/api/student/registration/cart');
+export async function fetchRegisteredCourses(): Promise<RegisteredCoursesData | null> {
+  const res = await api.get<ApiResponse<RegisteredCoursesData>>('/api/student/registration/my-courses');
   return unwrap(res);
 }
 
-export async function removeFromCart(cartItemId: number): Promise<{ success: boolean; message: string }> {
-  const res = await api.delete<ApiResponse<any>>(`/api/student/registration/cart/${cartItemId}`);
-  const d = res.data as ApiResponse<any> & { message?: string };
-  if (d?.isSuccess) return { success: true, message: d.message || 'Removed from cart' };
-  throw new Error(getErrorMessage(res));
+// --- Batch Validation (read-only) ---
+
+export async function validateBatch(courseInstanceIds: number[]): Promise<BatchValidationResult> {
+  const res = await api.post<ApiResponse<BatchValidationResult>>('/api/student/registration/validate-batch', { courseInstanceIds });
+  const data = unwrap(res);
+  if (!data) throw new Error(getErrorMessage(res));
+  return data;
 }
 
-export async function clearCart(): Promise<{ success: boolean; message: string }> {
-  const res = await api.delete<ApiResponse<any>>('/api/student/registration/cart');
-  const d = res.data as ApiResponse<any> & { message?: string };
-  if (d?.isSuccess) return { success: true, message: d.message || 'Cart cleared' };
-  throw new Error(getErrorMessage(res));
+// --- Batch Submit (atomic registration) ---
+
+export async function submitRegistration(courseInstanceIds: number[]): Promise<SubmitRegistrationResponse> {
+  const res = await api.post<ApiResponse<SubmitRegistrationResponse>>('/api/student/registration/submit', { courseInstanceIds });
+  const data = unwrap(res);
+  if (!data) throw new Error(getErrorMessage(res));
+  return data;
 }
 
-export async function confirmRegistration(cartId: number): Promise<{ success: boolean; message: string }> {
-  const res = await api.post<ApiResponse<any>>('/api/student/registration/confirm', { cartId });
-  const d = res.data as ApiResponse<any> & { message?: string };
-  if (d?.isSuccess) return { success: true, message: d.message || 'Registration confirmed' };
-  throw new Error(getErrorMessage(res));
+// --- Single Course Registration (existing endpoint — kept for backward compatibility) ---
+
+export async function registerSingleCourse(courseInstanceId: number): Promise<{ enrollmentId: number; status: number; message: string }> {
+  const res = await api.post<ApiResponse<{ enrollmentId: number; status: number; message: string }>>('/api/student/registration/register', { courseInstanceId });
+  const data = unwrap(res);
+  if (!data) throw new Error(getErrorMessage(res));
+  return data;
 }
 
-export async function fetchEnrollments(): Promise<EnrollmentsData | null> {
-  const res = await api.get<ApiResponse<EnrollmentsData>>('/api/student/registration/enrollments');
-  return unwrap(res);
-}
+// --- Drop Course (existing endpoint) ---
 
-export async function dropCourse(enrollmentId: number): Promise<{ success: boolean; message: string }> {
-  const res = await api.post<ApiResponse<any>>(`/api/student/registration/enrollments/${enrollmentId}/drop`, {});
-  const d = res.data as ApiResponse<any> & { message?: string };
-  if (d?.isSuccess) return { success: true, message: d.message || 'Course dropped' };
-  throw new Error(getErrorMessage(res));
-}
-
-export async function leaveWaitlist(enrollmentId: number): Promise<{ success: boolean; message: string }> {
-  const res = await api.post<ApiResponse<any>>(`/api/student/registration/enrollments/${enrollmentId}/leave-waitlist`, {});
-  const d = res.data as ApiResponse<any> & { message?: string };
-  if (d?.isSuccess) return { success: true, message: d.message || 'Left waitlist' };
-  throw new Error(getErrorMessage(res));
+export async function dropCourse(enrollmentId: number): Promise<{ enrollmentId: number; message: string }> {
+  const res = await api.delete<ApiResponse<{ enrollmentId: number; message: string }>>(`/api/student/registration/drop/${enrollmentId}`);
+  const data = unwrap(res);
+  if (!data) throw new Error(getErrorMessage(res));
+  return data;
 }

@@ -57,7 +57,7 @@ export interface DoctorCourseStudent {
   studentName: string;
   profilePictureUrl: string | null;
   section: string;
-  attendancePercentage: number;
+  attendancePercentage?: number | null;
   status: number;            // EnrollmentStatus: 0=Enrolled, 1=Waitlisted, 2=Dropped, 3=Completed, 4=Failed
 }
 
@@ -176,7 +176,7 @@ export interface DoctorAttendanceSummaryStudent {
   sessionsAttended: number;
   sessionsAbsent: number;
   totalSessions: number;
-  attendancePercentage: number;
+  attendancePercentage?: number | null;
   warningStatus: number;     // 0=Good, 1=Warning, 2=Danger
 }
 

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
 import { AuthState, AuthUser, LoginRequest, LoginResponseData } from '../types/auth';
-import { api, setTokens, clearTokens, getRefreshToken } from '../lib/api';
+import { api, setTokens, clearTokens, getRefreshToken, getAccessToken } from '../lib/api';
 import { Role } from '../lib/enums';
 import type { ApiResponse } from '../lib/api';
 
@@ -105,9 +105,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const logout = useCallback(async () => {
     const refresh = getRefreshToken();
-    if (refresh) {
+    const token = getAccessToken();
+    if (refresh && token) {
       try {
-        await api.post('/auth/revoke-refresh-token', { refreshToken: refresh });
+        await api.post('/auth/revoke-refresh-token', { token, refreshToken: refresh });
       } catch {
         // Best effort — continue with local cleanup
       }

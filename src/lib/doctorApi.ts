@@ -130,11 +130,16 @@ export async function deleteDoctor(
 
 export async function fetchDepartments(): Promise<DepartmentOption[]> {
   try {
-    const res = await api.get<ApiResponse<DepartmentOption[]>>('/api/admin/departments');
-    const data = unwrap(res);
-    if (data && Array.isArray(data)) return data;
-    const raw = res.data as unknown as DepartmentOption[];
-    if (Array.isArray(raw)) return raw;
+    type DeptRaw = { id: number; description?: string; name?: string };
+    const res = await api.get<ApiResponse<DeptRaw[]>>('/api/admin/departments');
+    const wrapped = unwrap(res);
+    if (wrapped && Array.isArray(wrapped)) {
+      return wrapped.map(d => ({ id: d.id, name: d.description ?? d.name ?? String(d.id) }));
+    }
+    const raw = res.data as unknown as DeptRaw[];
+    if (Array.isArray(raw)) {
+      return raw.map(d => ({ id: d.id, name: d.description ?? d.name ?? String(d.id) }));
+    }
     return [];
   } catch { return []; }
 }

@@ -22,11 +22,10 @@ export enum SemesterNumber {
 
 export enum EnrollmentStatus {
   Enrolled = 0,
-  Dropped = 1,
-  Withdrawn = 2,
-  Failed = 3,
-  Waitlisted = 4,
-  Pending = 5,
+  Waitlisted = 1,
+  Dropped = 2,
+  Completed = 3,
+  Failed = 4,
 }
 
 export enum DoctorTitle {
@@ -224,11 +223,10 @@ export const SEMESTER_NUMBER_LABELS: Record<SemesterNumber, string> = {
 
 export const ENROLLMENT_STATUS_LABELS: Record<EnrollmentStatus, string> = {
   [EnrollmentStatus.Enrolled]: 'Enrolled',
-  [EnrollmentStatus.Dropped]: 'Dropped',
-  [EnrollmentStatus.Withdrawn]: 'Withdrawn',
-  [EnrollmentStatus.Failed]: 'Failed',
   [EnrollmentStatus.Waitlisted]: 'Waitlisted',
-  [EnrollmentStatus.Pending]: 'Pending',
+  [EnrollmentStatus.Dropped]: 'Dropped',
+  [EnrollmentStatus.Completed]: 'Completed',
+  [EnrollmentStatus.Failed]: 'Failed',
 };
 
 export const ROOM_TYPE_LABELS: Record<RoomType, string> = {
