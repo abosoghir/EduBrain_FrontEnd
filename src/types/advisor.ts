@@ -85,6 +85,7 @@ export interface AdvisorStudentDto {
   studentId: number;
   studentCode: string;
   studentName: string;
+  email: string;
   profilePictureUrl: string | null;
   yearLevel: YearLevel;
   gpa: number;

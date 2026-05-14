@@ -1,7 +1,13 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { fetchFeesDashboard, sendFeeReminder } from '@/lib/advisorPortalApi';
 import type { FeesDashboardData, FeesDashboardStudentDto } from '@/types/advisor';
-import { PAYMENT_STATUS_LABELS, PaymentStatus } from '@/lib/enums';
+import { PaymentStatus } from '@/lib/enums';
+
+const STATUS_LABELS: Record<number, string> = {
+  [PaymentStatus.Paid]: 'Paid',
+  [PaymentStatus.PartiallyPaid]: 'Partially Paid',
+  [PaymentStatus.Unpaid]: 'Unpaid',
+};
 
 export default function AdvisorFees() {
   const [data, setData] = useState<FeesDashboardData | null>(null);
@@ -133,7 +139,7 @@ export default function AdvisorFees() {
                   <td className="px-5 py-3 text-center text-sm font-medium text-slate-700">{s.totalAmount.toLocaleString()} EGP</td>
                   <td className="px-5 py-3 text-center">
                     <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-medium ${statusBadge(s.status)}`}>
-                      {PAYMENT_STATUS_LABELS[s.status as PaymentStatus]}
+                      {STATUS_LABELS[s.status] || 'Unknown'}
                     </span>
                   </td>
                   <td className="px-5 py-3 text-center">

@@ -9,7 +9,7 @@ interface StudentPickerProps {
   className?: string;
 }
 
-export default function StudentPicker({ value, onChange, placeholder = 'Search by name or code...', className = '' }: StudentPickerProps) {
+export default function StudentPicker({ value, onChange, placeholder = 'Search by name, email, or code...', className = '' }: StudentPickerProps) {
   const [query, setQuery] = useState('');
   const [students, setStudents] = useState<AdvisorStudentDto[]>([]);
   const [allStudents, setAllStudents] = useState<AdvisorStudentDto[]>([]);
@@ -59,6 +59,7 @@ export default function StudentPicker({ value, onChange, placeholder = 'Search b
           allStudents.filter(
             (s) =>
               s.studentName.toLowerCase().includes(lower) ||
+              (s.email && s.email.toLowerCase().includes(lower)) ||
               s.studentCode.toLowerCase().includes(lower)
           )
         );
@@ -105,8 +106,11 @@ export default function StudentPicker({ value, onChange, placeholder = 'Search b
             </div>
           )}
           <div className="flex-1 min-w-0">
-            <span className="font-medium text-slate-800">{selected.studentName}</span>
-            <span className="text-slate-400 ml-2 text-xs">{selected.studentCode}</span>
+            <div className="flex items-center gap-2">
+              <span className="font-medium text-slate-800">{selected.studentName}</span>
+              <span className="text-slate-400 text-xs">{selected.studentCode}</span>
+            </div>
+            <span className="text-slate-500 text-xs truncate">{selected.email}</span>
           </div>
           <button
             type="button"
@@ -156,7 +160,8 @@ export default function StudentPicker({ value, onChange, placeholder = 'Search b
                 )}
                 <div className="flex-1 min-w-0">
                   <p className="text-sm font-medium text-slate-700 truncate">{s.studentName}</p>
-                  <p className="text-[10px] text-slate-400">{s.studentCode} · GPA: {s.gpa.toFixed(2)}</p>
+                  <p className="text-[10px] text-slate-400 truncate">{s.email}</p>
+                  <p className="text-[10px] text-slate-400 mt-0.5">{s.studentCode} · GPA: {s.gpa.toFixed(2)}</p>
                 </div>
               </button>
             ))
