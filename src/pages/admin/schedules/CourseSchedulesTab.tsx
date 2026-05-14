@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { fetchCourseSchedules, createCourseSchedule, updateCourseSchedule, deleteCourseSchedule, fetchSemesters, fetchDoctorsDropdown, fetchRoomsDropdown, fetchDepartmentsDropdown, fetchWeeklyTimetable, fetchCourseInstancesDropdown } from '@/lib/scheduleApi';
 import type { CourseScheduleItem, CourseScheduleFilterParams, CreateCourseScheduleForm, UpdateCourseScheduleForm, SemesterOption, DoctorOption, RoomOption, DepartmentOption, TimetableBlock, CourseInstanceDropdownItem } from '@/types/admin';
-import { SCHEDULE_TYPE_LABELS } from '@/lib/enums';
+import { SCHEDULE_TYPE_LABELS, YEAR_LEVEL_LABELS, YearLevel } from '@/lib/enums';
 import WeeklyScheduleGrid from './WeeklyScheduleGrid';
 
 const TIME_PRESETS = [
@@ -190,6 +190,10 @@ export default function CourseSchedulesTab() {
           <select value={filters.departmentId ?? ''} onChange={e => setFilters(p => ({ ...p, departmentId: e.target.value ? Number(e.target.value) : undefined }))} className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-200">
             <option value="">All Departments</option>
             {departments.map(d => <option key={d.id} value={d.id}>{d.name}</option>)}
+          </select>
+          <select value={filters.yearLevel ?? ''} onChange={e => setFilters(p => ({ ...p, yearLevel: e.target.value ? Number(e.target.value) : undefined }))} className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-200">
+            <option value="">All Levels</option>
+            {Object.entries(YEAR_LEVEL_LABELS).map(([val, label]) => <option key={val} value={val}>{label}</option>)}
           </select>
           <select value={filters.doctorId ?? ''} onChange={e => setFilters(p => ({ ...p, doctorId: e.target.value ? Number(e.target.value) : undefined }))} className="px-3 py-2 rounded-lg border border-gray-200 text-sm bg-white focus:outline-none focus:ring-2 focus:ring-slate-200">
             <option value="">All Doctors</option>

@@ -287,15 +287,26 @@ export async function fetchSemesters(): Promise<SemesterOption[]> {
 
 export async function fetchDoctorsDropdown(): Promise<DoctorOption[]> {
   try {
-    const res = await api.get<unknown>('/api/doctors');
-    const raw = res.data as { data?: DoctorOption[] } & ApiResponse<DoctorOption[]>;
-    // Might be paginated { items: [...] } — extract items
-    const paginated = res.data as { items?: DoctorOption[] };
-    if (paginated && Array.isArray(paginated.items)) return paginated.items;
-    if (raw && 'data' in raw && Array.isArray(raw.data)) return raw.data;
-    if (raw && 'isSuccess' in raw && raw.isSuccess && Array.isArray(raw.data)) return raw.data;
-    if (Array.isArray(res.data)) return res.data as DoctorOption[];
-    return [];
+    const res = await api.get<unknown>('/api/doctors?pageSize=500');
+    const raw = res.data as Record<string, unknown>;
+    // Backend wraps in ApiResponse<PaginatedList> → data.data.items
+    // or direct PaginatedList → items
+    let items: Array<Record<string, unknown>> = [];
+    if (raw && 'isSuccess' in raw && raw['isSuccess']) {
+      const inner = raw['data'] as Record<string, unknown> | undefined;
+      if (inner && Array.isArray(inner['items'])) items = inner['items'] as Array<Record<string, unknown>>;
+    }
+    if (items.length === 0) {
+      const paginated = raw as { items?: Array<Record<string, unknown>> };
+      if (paginated && Array.isArray(paginated.items)) items = paginated.items;
+    }
+    if (items.length === 0 && raw && 'data' in raw && Array.isArray(raw['data'])) {
+      items = raw['data'] as Array<Record<string, unknown>>;
+    }
+    return items.map(d => ({
+      id: d['id'] as number,
+      fullName: (d['fullName'] as string) || (d['name'] as string) || 'Unknown',
+    }));
   } catch { return []; }
 }
 
@@ -313,10 +324,23 @@ export async function fetchRoomsDropdown(): Promise<RoomOption[]> {
 export async function fetchDepartmentsDropdown(): Promise<DepartmentOption[]> {
   try {
     const res = await api.get<unknown>('/api/admin/departments');
-    const raw = res.data as { data?: DepartmentOption[] } & ApiResponse<DepartmentOption[]>;
-    if (raw && 'data' in raw && Array.isArray(raw.data)) return raw.data;
-    if (raw && 'isSuccess' in raw && raw.isSuccess && Array.isArray(raw.data)) return raw.data;
-    if (Array.isArray(res.data)) return res.data as DepartmentOption[];
-    return [];
+    const raw = res.data as Record<string, unknown>;
+    let items: Array<Record<string, unknown>> = [];
+    // ApiResponse<List<DepartmentDto>> → data.data = [...]
+    if (raw && 'isSuccess' in raw && raw['isSuccess']) {
+      const inner = raw['data'];
+      if (Array.isArray(inner)) items = inner as Array<Record<string, unknown>>;
+    }
+    if (items.length === 0 && raw && 'data' in raw && Array.isArray(raw['data'])) {
+      items = raw['data'] as Array<Record<string, unknown>>;
+    }
+    if (items.length === 0 && Array.isArray(res.data)) {
+      items = res.data as Array<Record<string, unknown>>;
+    }
+    // Backend DepartmentDto has { id, description } — map description to name
+    return items.map(d => ({
+      id: d['id'] as number,
+      name: (d['description'] as string) || (d['name'] as string) || (d['code'] as string) || 'Unknown',
+    }));
   } catch { return []; }
 }

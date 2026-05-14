@@ -956,6 +956,7 @@ export interface CourseScheduleFilterParams {
   doctorId?: number;
   roomId?: number;
   day?: number;
+  yearLevel?: number;
 }
 
 export interface CreateCourseScheduleForm {
