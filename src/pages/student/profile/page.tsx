@@ -30,7 +30,7 @@ export default function StudentProfilePage() {
           fatherPhone: p.fatherPhone ?? '',
           fatherJob: p.fatherJob ?? '',
           nationality: p.nationality ?? '',
-          gender: p.gender,
+          gender: p.gender as 0 | 1,
           religion: p.religion ?? '',
           dateOfBirth: p.dateOfBirth ? p.dateOfBirth.split('T')[0] : '',
         });
@@ -59,7 +59,7 @@ export default function StudentProfilePage() {
         fatherPhone: updated.fatherPhone ?? '',
         fatherJob: updated.fatherJob ?? '',
         nationality: updated.nationality ?? '',
-        gender: updated.gender,
+        gender: updated.gender as 0 | 1,
         religion: updated.religion ?? '',
         dateOfBirth: updated.dateOfBirth ? updated.dateOfBirth.split('T')[0] : '',
       });
@@ -112,9 +112,9 @@ export default function StudentProfilePage() {
   }
 
   const academicInfoRows: Array<{ label: string; value: string; icon: string }> = [
-    { label: 'Student Code', value: profile.studentCode, icon: 'ri-id-card-line' },
+    { label: 'Student Code', value: profile.studentCode, icon: 'ri-profile-line' },
     { label: 'Department', value: profile.departmentName, icon: 'ri-building-line' },
-    { label: 'Year Level', value: YEAR_LEVEL_LABELS[profile.yearLevel as 0 | 1 | 2 | 3], icon: 'ri-stairs-line' },
+    { label: 'Year Level', value: YEAR_LEVEL_LABELS[profile.yearLevel as 0 | 1 | 2 | 3], icon: 'ri-stack-line' },
     { label: 'Cumulative GPA', value: profile.cumulativeGPA.toFixed(2), icon: 'ri-bar-chart-line' },
     { label: 'Total Credits', value: String(profile.totalCreditHours), icon: 'ri-time-line' },
     { label: 'Academic Advisor', value: profile.academicAdvisorName ?? 'N/A', icon: 'ri-user-star-line' },
