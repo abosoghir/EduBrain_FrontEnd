@@ -427,4 +427,8 @@ export interface AddStudentRequest {
   email: string;
   name: string;
   phoneNumber: string;
+  nationalId: string;
+  yearLevel: number;
+  departmentId?: number;
+  academicAdvisorId?: number;
 }

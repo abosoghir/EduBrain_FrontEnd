@@ -1,7 +1,8 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { fetchMyStudents } from '@/lib/advisorPortalApi';
-import type { AdvisorStudentDto, GetMyStudentsResponse } from '@/types/advisor';
+import { fetchMyStudents, addStudent } from '@/lib/advisorPortalApi';
+import type { AdvisorStudentDto, GetMyStudentsResponse, AddStudentRequest } from '@/types/advisor';
+import AddStudentModal from './AddStudentModal';
 import {
   STUDENT_STATUS_FILTER_LABELS,
   YEAR_LEVEL_LABELS,
@@ -18,6 +19,10 @@ export default function AdvisorStudents() {
   const [statusFilter, setStatusFilter] = useState<number | undefined>(undefined);
   const [page, setPage] = useState(1);
   const pageSize = 20;
+
+  const [showAddModal, setShowAddModal] = useState(false);
+  const [addingStudent, setAddingStudent] = useState(false);
+  const [toast, setToast] = useState<string | null>(null);
 
   const loadStudents = useCallback(async () => {
     setLoading(true);
@@ -43,6 +48,26 @@ export default function AdvisorStudents() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  useEffect(() => {
+    if (toast) {
+      const t = setTimeout(() => setToast(null), 3000);
+      return () => clearTimeout(t);
+    }
+  }, [toast]);
+
+  const handleAddStudent = async (form: AddStudentRequest) => {
+    setAddingStudent(true);
+    const res = await addStudent(form);
+    setAddingStudent(false);
+    if (res.success) {
+      setToast('Student added successfully');
+      setShowAddModal(false);
+      loadStudents();
+    } else {
+      setToast(res.error || 'Failed to add student');
+    }
+  };
+
   const students = response?.students?.items ?? [];
   const pagination = response?.students;
 
@@ -67,7 +92,22 @@ export default function AdvisorStudents() {
 
   return (
     <div>
-      <h1 className="text-xl font-bold text-slate-800 mb-2">My Students</h1>
+      <div className="flex items-center justify-between mb-2">
+        <h1 className="text-xl font-bold text-slate-800">My Students</h1>
+        <button
+          type="button"
+          onClick={() => setShowAddModal(true)}
+          className="flex items-center gap-2 px-4 py-2 bg-amber-600 text-white rounded-lg text-sm font-medium hover:bg-amber-700 transition-colors"
+        >
+          <i className="ri-add-line" /> Add Student
+        </button>
+      </div>
+
+      {toast && (
+        <div className="mb-4 px-4 py-3 rounded-lg bg-emerald-50 text-emerald-700 text-sm flex items-center gap-2 border border-emerald-100">
+          <i className="ri-check-line" /> {toast}
+        </div>
+      )}
 
       {/* Summary Stats */}
       {response && !loading && (
@@ -246,6 +286,14 @@ export default function AdvisorStudents() {
           </div>
           <p className="text-sm text-slate-500">No students found matching your filters.</p>
         </div>
+      )}
+
+      {showAddModal && (
+        <AddStudentModal
+          onSubmit={handleAddStudent}
+          onClose={() => setShowAddModal(false)}
+          submitting={addingStudent}
+        />
       )}
     </div>
   );

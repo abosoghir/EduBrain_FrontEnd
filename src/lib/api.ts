@@ -4,17 +4,24 @@ const BASE_URL = 'https://edu-brain-v1.runasp.net';
 let accessToken: string | null = null;
 let refreshTokenValue: string | null = null;
 let tokenExpiration: number | null = null; // timestamp in ms
+let refreshPromise: Promise<boolean> | null = null; // prevent concurrent refreshes
 
 export function setTokens(access: string, refresh: string, expiresInSeconds: number) {
   accessToken = access;
   refreshTokenValue = refresh;
   tokenExpiration = Date.now() + expiresInSeconds * 1000;
+
+  // Keep sessionStorage in sync so page reloads survive
+  sessionStorage.setItem('edubrain_access', access);
+  sessionStorage.setItem('edubrain_refresh', refresh);
+  sessionStorage.setItem('edubrain_expiry', String(tokenExpiration));
 }
 
 export function clearTokens() {
   accessToken = null;
   refreshTokenValue = null;
   tokenExpiration = null;
+  refreshPromise = null;
 }
 
 export function getAccessToken(): string | null {
@@ -30,6 +37,41 @@ export function isTokenExpiringSoon(bufferMinutes = 5): boolean {
   return Date.now() >= tokenExpiration - bufferMinutes * 60 * 1000;
 }
 
+/**
+ * Attempt to refresh the access token using the stored refresh token.
+ * Returns true if successful, false otherwise. Uses a shared promise
+ * to prevent concurrent refresh calls.
+ */
+export async function refreshTokens(): Promise<boolean> {
+  if (!refreshTokenValue || !accessToken) return false;
+
+  // If a refresh is already in-flight, wait for it
+  if (refreshPromise) return refreshPromise;
+
+  refreshPromise = (async () => {
+    try {
+      const response = await fetch(`${BASE_URL}/auth/refresh-token`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: accessToken, refreshToken: refreshTokenValue }),
+      });
+      const data = await response.json();
+      if (data?.isSuccess && data?.hasData && data.data) {
+        const d = data.data;
+        setTokens(d.token, d.refreshToken, d.expiresIn);
+        return true;
+      }
+      return false;
+    } catch {
+      return false;
+    } finally {
+      refreshPromise = null;
+    }
+  })();
+
+  return refreshPromise;
+}
+
 export interface ApiResponse<T> {
   isSuccess: boolean;
   hasData: boolean;
@@ -42,6 +84,11 @@ export interface ApiResponse<T> {
 }
 
 export async function apiFetch<T>(endpoint: string, options?: { method?: string; headers?: Record<string, string>; body?: string }): Promise<{ data: T; status: number }> {
+  // Proactively refresh if token is about to expire
+  if (accessToken && refreshTokenValue && isTokenExpiringSoon(2)) {
+    await refreshTokens();
+  }
+
   const url = `${BASE_URL}${endpoint}`;
   const token = getAccessToken();
 
@@ -61,27 +108,27 @@ export async function apiFetch<T>(endpoint: string, options?: { method?: string;
 
   const data = await response.json().catch(() => null);
 
+  // If we still got a 401 (e.g. proactive refresh didn't fire), try refresh once
   if (!response.ok && response.status === 401 && refreshTokenValue) {
-    try {
-      const refreshResponse = await fetch(`${BASE_URL}/auth/refresh-token`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ token, refreshToken: refreshTokenValue }),
-      });
-      const refreshData = await refreshResponse.json();
-      if (refreshData?.isSuccess && refreshData?.hasData) {
-        const d = refreshData.data;
-        setTokens(d.token, d.refreshToken, d.expiresIn);
-        headers.Authorization = `Bearer ${d.token}`;
-        const retryResponse = await fetch(url, {
-          ...options,
-          headers,
-        });
-        const retryData = await retryResponse.json().catch(() => null);
-        return { data: retryData as T, status: retryResponse.status };
+    const refreshed = await refreshTokens();
+    if (refreshed) {
+      const newToken = getAccessToken();
+      if (newToken) {
+        headers.Authorization = `Bearer ${newToken}`;
       }
-    } catch {
+      const retryResponse = await fetch(url, {
+        ...options,
+        headers,
+      });
+      const retryData = await retryResponse.json().catch(() => null);
+      return { data: retryData as T, status: retryResponse.status };
+    } else {
+      // Refresh failed — force logout
       clearTokens();
+      sessionStorage.removeItem('edubrain_user');
+      sessionStorage.removeItem('edubrain_access');
+      sessionStorage.removeItem('edubrain_refresh');
+      sessionStorage.removeItem('edubrain_expiry');
       window.dispatchEvent(new Event('auth:logout'));
     }
   }

@@ -1,6 +1,6 @@
-import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from 'react';
 import { AuthState, AuthUser, LoginRequest, LoginResponseData } from '../types/auth';
-import { api, setTokens, clearTokens, getRefreshToken, getAccessToken } from '../lib/api';
+import { api, setTokens, clearTokens, getRefreshToken, getAccessToken, isTokenExpiringSoon, refreshTokens } from '../lib/api';
 import { Role } from '../lib/enums';
 import type { ApiResponse } from '../lib/api';
 
@@ -60,6 +60,32 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     window.addEventListener('auth:logout', handleLogout);
     return () => window.removeEventListener('auth:logout', handleLogout);
   }, []);
+
+  // Proactive background token refresh — check every 60s
+  useEffect(() => {
+    if (!state.isAuthenticated) return;
+
+    const interval = setInterval(async () => {
+      const refresh = getRefreshToken();
+      const token = getAccessToken();
+      if (!token || !refresh) return;
+
+      if (isTokenExpiringSoon(3)) {
+        const success = await refreshTokens();
+        if (!success) {
+          // Refresh failed — force logout
+          clearTokens();
+          sessionStorage.removeItem('edubrain_user');
+          sessionStorage.removeItem('edubrain_access');
+          sessionStorage.removeItem('edubrain_refresh');
+          sessionStorage.removeItem('edubrain_expiry');
+          setState({ user: null, isAuthenticated: false, isLoading: false });
+        }
+      }
+    }, 60 * 1000); // every 60 seconds
+
+    return () => clearInterval(interval);
+  }, [state.isAuthenticated]);
 
   const login = useCallback(async (credentials: LoginRequest): Promise<{ success: boolean; error?: string }> => {
     try {
