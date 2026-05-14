@@ -359,7 +359,11 @@ export async function createAnnouncement(
   form: CreateAnnouncementRequest
 ): Promise<{ data: CreateAnnouncementResponse | null; error?: string }> {
   try {
-    const res = await api.post<unknown>('/api/doctor/announcements', form);
+    const payload = { ...form };
+    if (payload.courseInstanceId === null) delete payload.courseInstanceId;
+    if (payload.studentIds === null) delete payload.studentIds;
+
+    const res = await api.post<unknown>('/api/doctor/announcements', payload);
     const data = unwrap<CreateAnnouncementResponse>(res);
     if (data) return { data };
     return { data: null, error: errMsg(res) };

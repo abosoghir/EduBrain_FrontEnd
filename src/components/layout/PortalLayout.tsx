@@ -2,6 +2,7 @@ import React, { useState, useCallback, useMemo, useEffect } from 'react';
 import { NavLink, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Role, ROLE_LABELS } from '../../lib/enums';
+import { fetchStudentNotifications } from '../../lib/studentPortalApi';
 
 interface NavItem {
   path: string;
@@ -121,6 +122,7 @@ export default function PortalLayout({ children, allowedRole }: { children: Reac
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [unreadCount, setUnreadCount] = useState(0);
 
   const role = user?.role ?? allowedRole;
   const navItems = PORTAL_NAV[role] || [];
@@ -185,6 +187,17 @@ export default function PortalLayout({ children, allowedRole }: { children: Reac
       default: return '';
     }
   }, [role]);
+
+  // Fetch unread notifications count (currently implemented for students)
+  useEffect(() => {
+    if (role === Role.Student) {
+      fetchStudentNotifications({ isRead: false, pageSize: 1 })
+        .then((res) => {
+          if (res?.unreadCount) setUnreadCount(res.unreadCount);
+        })
+        .catch(() => { /* ignore */ });
+    }
+  }, [role, location.pathname]); // Re-fetch occasionally or when navigating
 
   return (
     <div className="flex min-h-screen bg-gray-50">
@@ -309,7 +322,13 @@ export default function PortalLayout({ children, allowedRole }: { children: Reac
                   className="relative w-9 h-9 flex items-center justify-center rounded-lg hover:bg-gray-100 transition-colors"
                 >
                   <i className="ri-notification-line text-slate-600" />
-                  <span className="absolute top-1.5 right-1.5 w-2 h-2 rounded-full bg-red-500" />
+                  {unreadCount > 0 ? (
+                    <span className="absolute top-1 right-1 flex h-3.5 min-w-[14px] items-center justify-center rounded-full bg-red-500 px-1 text-[9px] font-bold text-white shadow-sm ring-2 ring-white">
+                      {unreadCount > 99 ? '99+' : unreadCount}
+                    </span>
+                  ) : (
+                    <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-slate-300 ring-2 ring-white" />
+                  )}
                 </button>
               )}
 
