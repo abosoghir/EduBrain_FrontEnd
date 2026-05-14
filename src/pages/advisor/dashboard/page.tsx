@@ -1,23 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { api } from '@/lib/api';
-import type { ApiResponse } from '@/lib/api';
+import { fetchAdvisorDashboard } from '@/lib/advisorPortalApi';
+import type { AdvisorDashboardData } from '@/types/advisor';
 import { SkeletonStat } from '@/components/base/Skeleton';
 import { EmptyState } from '@/components/base/EmptyState';
 
-interface AdvisorDashboardData {
-  totalStudents: number;
-  activeWarnings: number;
-  unpaidFees: number;
-  pendingAdjustments: number;
-  studentsNeedingAttention: Array<{
-    studentId: number;
-    studentCode: string;
-    studentName: string;
-    gpa: number;
-    issueType: number;
-  }>;
-}
+const ISSUE_TYPE_MAP: Record<number, { label: string; color: string; icon: string }> = {
+  0: { label: 'Low GPA', color: 'bg-red-50 text-red-600', icon: 'ri-bar-chart-line' },
+  1: { label: 'High Absence', color: 'bg-orange-50 text-orange-600', icon: 'ri-user-unfollow-line' },
+  2: { label: 'Unpaid Fees', color: 'bg-amber-50 text-amber-600', icon: 'ri-money-dollar-circle-line' },
+};
 
 export default function AdvisorDashboard() {
   const navigate = useNavigate();
@@ -25,25 +17,12 @@ export default function AdvisorDashboard() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    api.get<ApiResponse<AdvisorDashboardData>>('/api/advisor/dashboard')
+    fetchAdvisorDashboard()
       .then((res) => {
-        if (res.data.isSuccess && res.data.hasData) {
-          setData(res.data.data);
-        } else {
-          setData(null);
-        }
-      })
-      .catch(() => {
-        setData(null);
+        setData(res.data);
       })
       .finally(() => setLoading(false));
   }, []);
-
-  const issueTypeLabels: Record<number, { label: string; color: string }> = {
-    0: { label: 'Low GPA', color: 'bg-red-50 text-red-600' },
-    1: { label: 'High Absence', color: 'bg-orange-50 text-orange-600' },
-    2: { label: 'Unpaid Fees', color: 'bg-amber-50 text-amber-600' },
-  };
 
   return (
     <div className="animate-[fadeUp_0.3s_ease-out]">
@@ -111,20 +90,36 @@ export default function AdvisorDashboard() {
         ) : (data?.studentsNeedingAttention && data.studentsNeedingAttention.length > 0) ? (
           <div className="space-y-2">
             {data.studentsNeedingAttention.map((student) => {
-              const issue = issueTypeLabels[student.issueType] || { label: 'Issue', color: 'bg-gray-50 text-gray-600' };
+              const issue = ISSUE_TYPE_MAP[student.issueType] || { label: 'Issue', color: 'bg-gray-50 text-gray-600', icon: 'ri-error-warning-line' };
               return (
-                <div key={`${student.studentId}-${student.issueType}`} className="flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
-                  <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-medium text-slate-600">
-                    {student.studentName.charAt(0)}
-                  </div>
+                <button
+                  key={`${student.studentId}-${student.issueType}`}
+                  type="button"
+                  onClick={() => navigate(`/advisor/students/${student.studentId}`)}
+                  className="w-full flex items-center gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors text-left"
+                >
+                  {student.profilePictureUrl ? (
+                    <img
+                      src={student.profilePictureUrl}
+                      alt={student.studentName}
+                      className="w-8 h-8 rounded-full object-cover"
+                    />
+                  ) : (
+                    <div className="w-8 h-8 rounded-full bg-slate-200 flex items-center justify-center text-xs font-medium text-slate-600">
+                      {student.studentName.charAt(0)}
+                    </div>
+                  )}
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-slate-700">{student.studentName}</p>
-                    <p className="text-[10px] text-slate-400">{student.studentCode} · GPA: {student.gpa}</p>
+                    <p className="text-[10px] text-slate-400">
+                      {student.studentCode} · GPA: {student.gpa.toFixed(2)}
+                      {student.issueDescription ? ` · ${student.issueDescription}` : ''}
+                    </p>
                   </div>
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${issue.color}`}>
+                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-medium ${issue.color} whitespace-nowrap`}>
                     {issue.label}
                   </span>
-                </div>
+                </button>
               );
             })}
           </div>

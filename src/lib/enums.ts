@@ -158,9 +158,22 @@ export enum CourseAvailabilityStatus {
 }
 
 export enum StudentStatusFilter {
-  Normal = 0,
-  AtRisk = 1,
-  DeanList = 2,
+  GoodStanding = 0,
+  DeanList = 1,
+  AcademicWarning = 2,
+  Probation = 3,
+}
+
+// Backend PaymentStatus (different from admin FeeStatus)
+export enum PaymentStatus {
+  Paid = 0,
+  Unpaid = 1,
+  PartiallyPaid = 2,
+}
+
+export enum WarningStatus {
+  Active = 0,
+  Resolved = 1,
 }
 
 export enum AttentionType {
@@ -351,9 +364,21 @@ export const NOTIFICATION_TYPE_LABELS: Record<NotificationType, string> = {
 };
 
 export const STUDENT_STATUS_FILTER_LABELS: Record<StudentStatusFilter, string> = {
-  [StudentStatusFilter.Normal]: 'Normal',
-  [StudentStatusFilter.AtRisk]: 'At Risk',
+  [StudentStatusFilter.GoodStanding]: 'Good Standing',
   [StudentStatusFilter.DeanList]: 'Dean\'s List',
+  [StudentStatusFilter.AcademicWarning]: 'Academic Warning',
+  [StudentStatusFilter.Probation]: 'Probation',
+};
+
+export const PAYMENT_STATUS_LABELS: Record<PaymentStatus, string> = {
+  [PaymentStatus.Paid]: 'Paid',
+  [PaymentStatus.Unpaid]: 'Unpaid',
+  [PaymentStatus.PartiallyPaid]: 'Partially Paid',
+};
+
+export const WARNING_STATUS_LABELS: Record<WarningStatus, string> = {
+  [WarningStatus.Active]: 'Active',
+  [WarningStatus.Resolved]: 'Resolved',
 };
 
 export const WARNING_LEVEL_LABELS: Record<WarningLevel, string> = {
