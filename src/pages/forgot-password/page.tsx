@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../../lib/api';
 import { ForgotPasswordRequest } from '../../types/auth';
@@ -10,6 +10,28 @@ export default function ForgotPasswordPage() {
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+
+  const [stats, setStats] = useState({
+    studentsCount: 1240,
+    coursesCount: 86,
+    facultyCount: 64,
+  });
+
+  useEffect(() => {
+    api.get<any>('/api/public/stats').then(res => {
+      if (res.data) {
+        let statsData = res.data;
+        if (statsData.isSuccess && statsData.data) {
+          statsData = statsData.data;
+        }
+        setStats({
+          studentsCount: statsData.studentsCount || 0,
+          coursesCount: statsData.coursesCount || 0,
+          facultyCount: statsData.facultyCount || 0,
+        });
+      }
+    }).catch(console.error);
+  }, []);
 
   const handleSubmit = useCallback(
     async (e: React.FormEvent) => {
@@ -67,15 +89,15 @@ export default function ForgotPasswordPage() {
           <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-4">Faculty Excellence</p>
           <div className="flex gap-8">
             <div>
-              <p className="text-2xl font-bold">1,240</p>
+              <p className="text-2xl font-bold">{stats.studentsCount.toLocaleString()}</p>
               <p className="text-xs text-slate-400">Students</p>
             </div>
             <div>
-              <p className="text-2xl font-bold">86</p>
+              <p className="text-2xl font-bold">{stats.coursesCount.toLocaleString()}</p>
               <p className="text-xs text-slate-400">Courses</p>
             </div>
             <div>
-              <p className="text-2xl font-bold">64</p>
+              <p className="text-2xl font-bold">{stats.facultyCount.toLocaleString()}</p>
               <p className="text-xs text-slate-400">Faculty</p>
             </div>
           </div>

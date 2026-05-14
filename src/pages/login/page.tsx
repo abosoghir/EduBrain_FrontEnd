@@ -1,8 +1,16 @@
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { Role, ROLE_LABELS } from '../../lib/enums';
 import { LoginRequest } from '../../types/auth';
+import { api } from '../../lib/api';
+
+interface SystemStats {
+  studentsCount: number;
+  coursesCount: number;
+  facultyCount: number;
+  departmentsCount: number;
+}
 
 const ROLES = [
   { role: Role.Admin, icon: 'ri-shield-user-line', color: 'bg-slate-600', ring: 'ring-slate-600', btn: 'bg-slate-700 hover:bg-slate-800' },
@@ -28,6 +36,30 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+
+  const [stats, setStats] = useState<SystemStats>({
+    studentsCount: 1240,
+    coursesCount: 86,
+    facultyCount: 64,
+    departmentsCount: 6,
+  });
+
+  useEffect(() => {
+    api.get<any>('/api/public/stats').then(res => {
+      if (res.data) {
+        let statsData = res.data;
+        if (statsData.isSuccess && statsData.data) {
+          statsData = statsData.data;
+        }
+        setStats({
+          studentsCount: statsData.studentsCount || 0,
+          coursesCount: statsData.coursesCount || 0,
+          facultyCount: statsData.facultyCount || 0,
+          departmentsCount: statsData.departmentsCount || 0,
+        });
+      }
+    }).catch(console.error);
+  }, []);
 
   const handleRoleChange = useCallback((role: Role) => {
     setSelectedRole(role);
@@ -119,25 +151,25 @@ export default function LoginPage() {
           <p className="text-[10px] uppercase tracking-wider text-slate-500 mb-4">Faculty Excellence</p>
           <div className="flex gap-8">
             <div>
-              <p className="text-2xl font-bold">1,240</p>
+              <p className="text-2xl font-bold">{stats.studentsCount.toLocaleString()}</p>
               <p className="text-xs text-slate-400 flex items-center gap-1">
                 <i className="ri-user-line" /> Students
               </p>
             </div>
             <div>
-              <p className="text-2xl font-bold">86</p>
+              <p className="text-2xl font-bold">{stats.coursesCount.toLocaleString()}</p>
               <p className="text-xs text-slate-400 flex items-center gap-1">
                 <i className="ri-book-line" /> Courses
               </p>
             </div>
             <div>
-              <p className="text-2xl font-bold">64</p>
+              <p className="text-2xl font-bold">{stats.facultyCount.toLocaleString()}</p>
               <p className="text-xs text-slate-400 flex items-center gap-1">
-                <i className="ri-user-voice-line" /> Faculty
+                <i className="ri-team-line" /> Faculty
               </p>
             </div>
             <div>
-              <p className="text-2xl font-bold">6</p>
+              <p className="text-2xl font-bold">{stats.departmentsCount.toLocaleString()}</p>
               <p className="text-xs text-slate-400 flex items-center gap-1">
                 <i className="ri-building-line" /> Departments
               </p>
