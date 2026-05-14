@@ -653,6 +653,10 @@ export interface UpdateStudentProfileRequest {
   city?: string;
   fatherPhone?: string;
   fatherJob?: string;
+  nationality?: string;
+  gender?: 0 | 1; // 0 = Male, 1 = Female
+  religion?: string;
+  dateOfBirth?: string; // ISO date string
 }
 
 export interface ChangeStudentPasswordRequest {

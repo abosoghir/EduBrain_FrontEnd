@@ -43,9 +43,7 @@ export default function ResetPasswordPage() {
       const payload: ResetPasswordRequest = {
         email,
         code,
-        password: newPassword,
-        confirmPassword,
-        token: '',
+        newPassword: newPassword,
       };
 
       try {

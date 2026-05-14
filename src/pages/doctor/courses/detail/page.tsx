@@ -15,13 +15,14 @@ import type {
   CreateMaterialForm,
 } from '@/types/doctor';
 import { MATERIAL_TYPE_LABELS, ENROLLMENT_STATUS_LABELS, EnrollmentStatus } from '@/lib/enums';
+import { resolveFileUrl, isExternalLink, downloadFile, isPreviewable } from '@/lib/fileUtils';
 
 const TABS = [
   { id: 'students', label: 'Students', icon: 'ri-user-line' },
   { id: 'materials', label: 'Materials', icon: 'ri-folder-line' },
 ];
 
-const EMPTY_MATERIAL: CreateMaterialForm = { title: '', type: 1, contentUrl: '', weekNumber: 1 };
+const EMPTY_MATERIAL: CreateMaterialForm = { title: '', type: 1, contentUrl: '', file: undefined };
 
 export default function DoctorCourseDetail() {
   const { id } = useParams<{ id: string }>();
@@ -64,8 +65,16 @@ export default function DoctorCourseDetail() {
   }, [id]);
 
   const handleAddMaterial = useCallback(async () => {
-    if (!id || !materialForm.title || !materialForm.contentUrl) {
-      setMaterialMsg({ type: 'error', text: 'Title and URL are required.' });
+    if (!id || !materialForm.title) {
+      setMaterialMsg({ type: 'error', text: 'Title is required.' });
+      return;
+    }
+    if (materialForm.type === 1 && !materialForm.file) {
+      setMaterialMsg({ type: 'error', text: 'Please select a file to upload.' });
+      return;
+    }
+    if (materialForm.type === 2 && !materialForm.contentUrl) {
+      setMaterialMsg({ type: 'error', text: 'Please enter a valid URL.' });
       return;
     }
     setSavingMaterial(true);
@@ -169,8 +178,8 @@ export default function DoctorCourseDetail() {
             type="button"
             onClick={() => setActiveTab(tab.id)}
             className={`flex items-center gap-1.5 px-4 py-2 rounded-md text-xs font-medium transition-all whitespace-nowrap ${activeTab === tab.id
-                ? 'bg-white text-violet-700 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
+              ? 'bg-white text-violet-700 shadow-sm'
+              : 'text-slate-500 hover:text-slate-700'
               }`}
           >
             <i className={tab.icon} />
@@ -302,13 +311,24 @@ export default function DoctorCourseDetail() {
                             </p>
                           </div>
                           <a
-                            href={m.contentUrl}
+                            href={resolveFileUrl(m.contentUrl)}
                             target="_blank"
                             rel="noopener noreferrer"
+                            title={isExternalLink(m.contentUrl) ? 'Open link' : (isPreviewable(m.contentUrl) ? 'Preview file' : 'Open file')}
                             className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-violet-50 flex items-center justify-center border border-gray-100 transition-colors shrink-0"
                           >
-                            <i className="ri-external-link-line text-slate-400 text-xs" />
+                            <i className={`${isExternalLink(m.contentUrl) ? 'ri-external-link-line' : 'ri-eye-line'} text-slate-400 text-xs`} />
                           </a>
+                          {!isExternalLink(m.contentUrl) && (
+                            <button
+                              type="button"
+                              title="Download file"
+                              onClick={() => downloadFile(m.contentUrl, m.title)}
+                              className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-blue-50 flex items-center justify-center border border-gray-100 transition-colors shrink-0"
+                            >
+                              <i className="ri-download-line text-slate-400 text-xs" />
+                            </button>
+                          )}
                           <button
                             type="button"
                             onClick={() => handleDeleteMaterial(m.materialId, m.title)}
@@ -365,27 +385,34 @@ export default function DoctorCourseDetail() {
                   ))}
                 </div>
               </div>
-              <div>
-                <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1">URL *</label>
-                <input
-                  type="url"
-                  value={materialForm.contentUrl}
-                  onChange={(e) => setMaterialForm({ ...materialForm, contentUrl: e.target.value })}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200"
-                  placeholder="https://..."
-                />
-              </div>
-              <div>
-                <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1">Week Number</label>
-                <input
-                  type="number"
-                  min={1}
-                  max={16}
-                  value={materialForm.weekNumber}
-                  onChange={(e) => setMaterialForm({ ...materialForm, weekNumber: Number(e.target.value) })}
-                  className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200"
-                />
-              </div>
+              {materialForm.type === 2 ? (
+                <div>
+                  <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1">URL *</label>
+                  <input
+                    type="url"
+                    value={materialForm.contentUrl}
+                    onChange={(e) => setMaterialForm({ ...materialForm, contentUrl: e.target.value })}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200"
+                    placeholder="https://..."
+                  />
+                </div>
+              ) : (
+                <div>
+                  <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1">Upload File *</label>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx,.ppt,.pptx,.zip"
+                    onChange={(e) => {
+                      const file = e.target.files?.[0];
+                      if (file) {
+                        setMaterialForm({ ...materialForm, file });
+                      }
+                    }}
+                    className="w-full px-3 py-2 rounded-lg border border-gray-200 text-sm focus:outline-none focus:ring-2 focus:ring-violet-200 file:mr-4 file:py-1 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-semibold file:bg-violet-50 file:text-violet-700 hover:file:bg-violet-100"
+                  />
+                  <p className="text-[10px] text-slate-400 mt-1">Allowed: PDF, DOC/X, PPT/X, ZIP (Max 10MB)</p>
+                </div>
+              )}
             </div>
             <div className="flex gap-2 mt-5">
               <button type="button" onClick={() => setShowMaterialModal(false)} className="flex-1 py-2 rounded-lg border border-gray-200 text-sm text-slate-600 hover:bg-gray-50">

@@ -13,6 +13,8 @@ import type {
   CreateCourseScheduleResponse,
   UpdateCourseScheduleForm,
   UpdateCourseScheduleResponse,
+  WeeklyTimetableResponse,
+  CourseInstanceDropdownItem,
   ExamScheduleItem,
   ExamScheduleFilterParams,
   CreateExamScheduleForm,
@@ -127,6 +129,46 @@ export async function deleteCourseSchedule(
     return { success: false, error: getErrorMessage(res) };
   } catch {
     return { success: false, error: 'Failed to delete course schedule' };
+  }
+}
+
+// ============================================================
+// Weekly Timetable (GET /api/schedules/timetable)
+// ============================================================
+
+export async function fetchWeeklyTimetable(
+  params: { semesterId?: number; departmentId?: number; doctorId?: number; roomId?: number } = {}
+): Promise<{ data: WeeklyTimetableResponse | null; error?: string }> {
+  try {
+    const qs = buildQueryString(params);
+    const res = await api.get<unknown>(`/api/schedules/timetable${qs}`);
+    const raw = res.data as Record<string, unknown>;
+    if (raw && 'blocks' in raw) return { data: raw as unknown as WeeklyTimetableResponse };
+    if (raw && 'isSuccess' in raw && raw['isSuccess'] && raw['data'])
+      return { data: raw['data'] as unknown as WeeklyTimetableResponse };
+    return { data: null, error: getErrorMessage(res) };
+  } catch {
+    return { data: null, error: 'Failed to fetch weekly timetable' };
+  }
+}
+
+// ============================================================
+// Course Instances Dropdown (GET /api/schedules/course-instances)
+// ============================================================
+
+export async function fetchCourseInstancesDropdown(
+  semesterId?: number
+): Promise<CourseInstanceDropdownItem[]> {
+  try {
+    const qs = semesterId ? `?semesterId=${semesterId}` : '';
+    const res = await api.get<unknown>(`/api/schedules/course-instances${qs}`);
+    const raw = res.data as { data?: CourseInstanceDropdownItem[] } & ApiResponse<CourseInstanceDropdownItem[]>;
+    if (raw && 'data' in raw && Array.isArray(raw.data)) return raw.data;
+    if (raw && 'isSuccess' in raw && raw.isSuccess && Array.isArray(raw.data)) return raw.data;
+    if (Array.isArray(res.data)) return res.data as CourseInstanceDropdownItem[];
+    return [];
+  } catch {
+    return [];
   }
 }
 

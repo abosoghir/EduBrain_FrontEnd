@@ -146,9 +146,19 @@ export async function createCourseMaterial(
   form: CreateMaterialForm
 ): Promise<{ success: boolean; error?: string }> {
   try {
+    const formData = new FormData();
+    formData.append('title', form.title);
+    formData.append('type', form.type.toString());
+    
+    if (form.type === 1 && form.file) {
+      formData.append('file', form.file);
+    } else if (form.type === 2 && form.contentUrl) {
+      formData.append('contentUrl', form.contentUrl);
+    }
+
     const res = await api.post<unknown>(
       `/api/doctor/courses/${courseInstanceId}/materials`,
-      form
+      formData
     );
     const raw = res.data as Record<string, unknown>;
     if (raw?.['success'] || (res.data as ApiResponse<unknown>)?.isSuccess) {

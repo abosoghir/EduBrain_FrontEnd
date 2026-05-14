@@ -29,6 +29,10 @@ export default function StudentProfilePage() {
           city: p.city ?? '',
           fatherPhone: p.fatherPhone ?? '',
           fatherJob: p.fatherJob ?? '',
+          nationality: p.nationality ?? '',
+          gender: p.gender,
+          religion: p.religion ?? '',
+          dateOfBirth: p.dateOfBirth ? p.dateOfBirth.split('T')[0] : '',
         });
       })
       .catch(() => setProfile(null))
@@ -39,7 +43,12 @@ export default function StudentProfilePage() {
     setSaving(true);
     setMessage(null);
     try {
-      await updateStudentProfile(form);
+      const payload: UpdateStudentProfileRequest = {
+        ...form,
+        dateOfBirth: form.dateOfBirth === '' ? undefined : form.dateOfBirth,
+        gender: form.gender === '' as any ? undefined : form.gender,
+      };
+      await updateStudentProfile(payload);
       // Refresh profile after save
       const updated = await fetchStudentProfile();
       setProfile(updated);
@@ -49,6 +58,10 @@ export default function StudentProfilePage() {
         city: updated.city ?? '',
         fatherPhone: updated.fatherPhone ?? '',
         fatherJob: updated.fatherJob ?? '',
+        nationality: updated.nationality ?? '',
+        gender: updated.gender,
+        religion: updated.religion ?? '',
+        dateOfBirth: updated.dateOfBirth ? updated.dateOfBirth.split('T')[0] : '',
       });
       setMessage({ type: 'success', text: 'Profile updated successfully.' });
       setEditMode(false);
@@ -109,7 +122,7 @@ export default function StudentProfilePage() {
 
   const personalInfoRows: Array<{ label: string; value: string; icon: string }> = [
     { label: 'Email', value: profile.email, icon: 'ri-mail-line' },
-    { label: 'Gender', value: GENDER_LABELS[profile.gender as 0 | 1], icon: 'ri-user-line' },
+    { label: 'Gender', value: profile.gender !== null && profile.gender !== undefined ? GENDER_LABELS[profile.gender as 0 | 1] : 'Not provided', icon: 'ri-user-line' },
     { label: 'Date of Birth', value: profile.dateOfBirth ? new Date(profile.dateOfBirth).toLocaleDateString() : '—', icon: 'ri-cake-line' },
     { label: 'National ID', value: profile.nationalId ?? '—', icon: 'ri-fingerprint-line' },
     { label: 'Nationality', value: profile.nationality ?? '—', icon: 'ri-flag-line' },
@@ -117,10 +130,14 @@ export default function StudentProfilePage() {
     { label: 'Qualification', value: profile.previousQualification ?? '—', icon: 'ri-file-certificate-line' },
   ];
 
-  const editFields: Array<{ key: keyof UpdateStudentProfileRequest; label: string; icon: string; type?: string; placeholder: string }> = [
+  const editFields: Array<{ key: keyof UpdateStudentProfileRequest; label: string; icon: string; type?: string; placeholder?: string; options?: Array<{ label: string; value: string | number }> }> = [
     { key: 'phoneNumber', label: 'Phone Number', icon: 'ri-phone-line', type: 'tel', placeholder: '+20 1234567890' },
     { key: 'address', label: 'Address', icon: 'ri-map-pin-line', placeholder: '123 Elm Street' },
     { key: 'city', label: 'City', icon: 'ri-building-line', placeholder: 'Cairo' },
+    { key: 'nationality', label: 'Nationality', icon: 'ri-flag-line', placeholder: 'Egyptian' },
+    { key: 'gender', label: 'Gender', icon: 'ri-user-line', type: 'select', options: [{ label: 'Male', value: 0 }, { label: 'Female', value: 1 }] },
+    { key: 'religion', label: 'Religion', icon: 'ri-heart-line', placeholder: 'Muslim' },
+    { key: 'dateOfBirth', label: 'Date of Birth', icon: 'ri-cake-line', type: 'date' },
     { key: 'fatherPhone', label: "Father's Phone", icon: 'ri-phone-line', type: 'tel', placeholder: '+20 1098765432' },
     { key: 'fatherJob', label: "Father's Job", icon: 'ri-briefcase-line', placeholder: 'Engineer' },
   ];
@@ -193,13 +210,26 @@ export default function StudentProfilePage() {
                     <label className="block text-[10px] font-medium text-slate-500 uppercase mb-1.5">{field.label}</label>
                     <div className="relative">
                       <i className={`${field.icon} absolute left-3 top-1/2 -translate-y-1/2 text-slate-400 text-sm`} />
-                      <input
-                        type={field.type ?? 'text'}
-                        value={form[field.key] ?? ''}
-                        onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
-                        placeholder={field.placeholder}
-                        className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
-                      />
+                      {field.type === 'select' ? (
+                        <select
+                          value={form[field.key] ?? ''}
+                          onChange={(e) => setForm({ ...form, [field.key]: e.target.value === '' ? undefined : Number(e.target.value) })}
+                          className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400 appearance-none"
+                        >
+                          <option value="" disabled>Select {field.label}</option>
+                          {field.options?.map((opt) => (
+                            <option key={opt.value} value={opt.value}>{opt.label}</option>
+                          ))}
+                        </select>
+                      ) : (
+                        <input
+                          type={field.type ?? 'text'}
+                          value={form[field.key] ?? ''}
+                          onChange={(e) => setForm({ ...form, [field.key]: e.target.value })}
+                          placeholder={field.placeholder}
+                          className="w-full pl-9 pr-4 py-2 rounded-lg border border-gray-200 bg-white text-sm focus:outline-none focus:ring-2 focus:ring-emerald-200 focus:border-emerald-400"
+                        />
+                      )}
                     </div>
                   </div>
                 ))}

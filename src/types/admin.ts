@@ -999,6 +999,55 @@ export interface UpdateCourseScheduleResponse {
 }
 
 // ============================================================
+// WEEKLY TIMETABLE (GET /api/schedules/timetable)
+// ============================================================
+
+export interface TimetableBlock {
+  scheduleId: number;
+  courseInstanceId: number;
+  courseCode: string;
+  courseName: string;
+  creditHours: number;
+  day: number;
+  startTime: string;
+  endTime: string;
+  type: number;
+  typeDisplay: string;
+  roomId: number | null;
+  roomName: string | null;
+  doctorId: number;
+  doctorName: string;
+  departmentName: string;
+  enrolledCount: number;
+  maxCapacity: number;
+  gridColumn: number;
+  gridRow: number;
+  rowSpan: number;
+}
+
+export interface WeeklyTimetableResponse {
+  blocks: TimetableBlock[];
+  totalSchedules: number;
+}
+
+// ============================================================
+// COURSE INSTANCES DROPDOWN (GET /api/schedules/course-instances)
+// ============================================================
+
+export interface CourseInstanceDropdownItem {
+  id: number;
+  courseCode: string;
+  courseName: string;
+  doctorName: string;
+  currentEnrolled: number;
+  maxCapacity: number;
+  creditHours: number;
+  theoryHours: number;
+  practicalHours: number;
+  label: string;
+}
+
+// ============================================================
 // EXAM SCHEDULES (GET /api/exam-schedules)
 // ============================================================
 

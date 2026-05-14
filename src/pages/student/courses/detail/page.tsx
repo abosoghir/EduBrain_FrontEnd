@@ -13,6 +13,7 @@ import type {
   CourseGradesDetailed,
 } from '@/types/student';
 import { MATERIAL_TYPE_LABELS, GRADE_LABELS, ATTENDANCE_STATUS_LABELS } from '@/lib/enums';
+import { resolveFileUrl, isExternalLink, downloadFile, isPreviewable } from '@/lib/fileUtils';
 
 const TABS = [
   { id: 'grades', label: 'Grades', icon: 'ri-bar-chart-line' },
@@ -346,15 +347,30 @@ export default function StudentCourseDetail() {
                           </p>
                         </div>
                         {m.contentUrl && (
-                          <a
-                            href={m.contentUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-emerald-50 flex items-center justify-center border border-gray-100 transition-colors shrink-0"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <i className={`${m.type === 2 ? 'ri-external-link-line' : 'ri-download-line'} text-slate-400 text-xs`} />
-                          </a>
+                          <div className="flex items-center gap-1">
+                            {/* Open / Preview button */}
+                            <a
+                              href={resolveFileUrl(m.contentUrl)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              title={isExternalLink(m.contentUrl) ? 'Open link' : (isPreviewable(m.contentUrl) ? 'Preview file' : 'Open file')}
+                              className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-emerald-50 flex items-center justify-center border border-gray-100 transition-colors shrink-0"
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              <i className={`${isExternalLink(m.contentUrl) ? 'ri-external-link-line' : 'ri-eye-line'} text-slate-400 text-xs`} />
+                            </a>
+                            {/* Download button (only for files, not external links) */}
+                            {!isExternalLink(m.contentUrl) && (
+                              <button
+                                type="button"
+                                title="Download file"
+                                onClick={(e) => { e.stopPropagation(); downloadFile(m.contentUrl, m.title); }}
+                                className="w-7 h-7 rounded-lg bg-gray-50 hover:bg-blue-50 flex items-center justify-center border border-gray-100 transition-colors shrink-0"
+                              >
+                                <i className="ri-download-line text-slate-400 text-xs" />
+                              </button>
+                            )}
+                          </div>
                         )}
                       </div>
                     ))}

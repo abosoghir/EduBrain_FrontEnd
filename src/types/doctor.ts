@@ -92,8 +92,8 @@ export interface DoctorCourseMaterialsResponse {
 export interface CreateMaterialForm {
   title: string;
   type: number;              // 1=File, 2=Link
-  contentUrl: string;
-  weekNumber: number;
+  contentUrl?: string;
+  file?: File;
 }
 
 // ---- Course Detail (composite — assembled from multiple endpoints) ----
